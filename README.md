@@ -114,6 +114,27 @@ truffle migrate
 truffle migrate --network quorum
 ```
 
+## Managing smart contracts in Kaleido
+
+Kaleido supports a smart contract management solution that can manage deploying, packaging, tracking and promoting smart contracts through different environments.
+
+To compile the package-labels smart contract:
+
+```
+cd IaC
+source ./create-contract-for-packagelabels.sh
+```
+
+To deploy the package-labels smart contract:
+
+```
+cd IaC
+source ./deploy-contract-for-packagelabels.sh
+```
+
+
+
+
 
 
 
