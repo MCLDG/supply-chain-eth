@@ -2,7 +2,7 @@
 echo Creating Kaleido CONTRACT
 #############################################################################################################
 PACKAGE_LABEL_CONTRACT=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent --data "{ \
-    \"name\": \"packagelabel\", \
+    \"name\": \"packagelabelling\", \
     \"description\": \"Contract for managing the labels affixed to packaging\", \
     \"membership_id\": \"$FARMER_MEMBER_ID\", \
     \"type\": \"github\" \

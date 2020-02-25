@@ -50,7 +50,7 @@ contract PackageLabels {
         public
     {
         require(bytes(batchId).length > 0, "batchId must contain a valid string");
-        require(bytes(packageLabels[batchId].batchId).length > 0, "batch for batchId must exist, i.e. batch must have been previously registered");
+        require(bytes(packageLabels[batchId].batchId).length > 0, "batch for batchId must exist, i.e. must be previously registered");
         require(bytes(labelCertificateLocation).length > 0, "the storage location for the labels certificate must contain a string value");
         packageLabels[batchId].labelCertificateLocation = labelCertificateLocation;
     }
