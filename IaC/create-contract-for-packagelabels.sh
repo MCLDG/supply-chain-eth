@@ -21,7 +21,7 @@ COMPILED_PACKAGE_LABEL_CONTRACT=$(curl --header "$HDR_AUTH" --header "$HDR_CT" -
     \"contract_url\": \"https://github.com/MCLDG/supply-chain-eth/blob/master/contracts/PackageLabels.sol\" \
  }" "$APIURL/consortia/$CONSORTIUM_ID/contracts/$PACKAGE_LABEL_CONTRACT_ID/compiled_contracts" | jq)
 
-export COMPILED_PACKAGE_LABEL_CONTRACT_ID=$(echo $COMPILED_PACKAGE_LABEL_CONTRACT | jq -r "._id")
+export COMPILED_PACKAGE_LABEL_CONTRACT_ID=$(echo $COMPILED_PACKAGE_LABEL_CONTRACT | jq -r ".contract_id")
 echo Created Kaleido compiled contract for package label smart contract with id: $COMPILED_PACKAGE_LABEL_CONTRACT_ID
 echo Compiled Contract $COMPILED_PACKAGE_LABEL_CONTRACT
 
