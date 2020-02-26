@@ -1,5 +1,3 @@
-brew install jq
-
 CONSORTIUM=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent "$APIURL/consortia?name=$CONSORTIUM_NAME" | jq)
 
 export CONSORTIUM_NAME=$(echo $CONSORTIUM | jq -r ".[0].name")
@@ -97,6 +95,18 @@ export SHIPPER_NODE_KAFKA_BROKERS=$(echo $SHIPPER_NODE | jq -r ".kafka.brokers")
 export SHIPPER_NODE_KAFKA_REQUEST_TOPIC=$(echo $SHIPPER_NODE | jq -r ".kafka.request_topic")
 export SHIPPER_NODE_KAFKA_REPLY_TOPIC=$(echo $SHIPPER_NODE | jq -r ".kafka.reply_topic")
 
+#############################################################################################################
+# Get the Kaleido IPFS service details
+#############################################################################################################
+IPFS_NODE=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent "$APIURL/consortia/$CONSORTIUM_ID/environments/$ENVIRONMENT_ID/services?service=ipfs" | jq)
+
+export IPFS_NODE_ID=$(echo $IPFS_NODE | jq -r ".[0]._id")
+export IPFS_NODE_NAME=$(echo $IPFS_NODE | jq -r ".[0].name")
+export IPFS_NODE_PEER_ID=$(echo $IPFS_NODE | jq -r ".[0].details.ipfs_peer_id")
+export IPFS_NODE_URL_HTTP=$(echo $IPFS_NODE | jq -r ".[0].urls.http")
+export IPFS_NODE_URL_WSS=$(echo $IPFS_NODE | jq -r ".[0].urls.ws")
+export IPFS_NODE_URL_WEBUI=$(echo $IPFS_NODE | jq -r ".[0].urls.webui")
+
 echo Consortium variables
 echo =====================
 env | grep CONSORTIUM
@@ -119,3 +129,7 @@ echo SHIPPER variables
 echo =====================
 env | grep SHIPPER_MEMBER
 env | grep SHIPPER_NODE
+
+echo IPFS variables
+echo =====================
+env | grep IPFS_NODE

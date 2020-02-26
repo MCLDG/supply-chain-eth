@@ -132,6 +132,38 @@ cd IaC
 source ./deploy-contract-for-packagelabels.sh
 ```
 
+Once the smart contract is deployed, Kaleido will auto-generate a RESTful API. You can use the RESTful API to all the functions in your smart contract. To do this, use the Kaleido console and navigate to the Contract Project you created when you ran this script `create-contract-for-packagelabels.sh`. You should see an associated Compilation at the bottom of the console page, with a status of Complete. Select this. When you ran `deploy-contract-for-packagelabels.sh` above, this should have deployed your smart contract to a Kaleido environment - you will see this in the Kaleido console on the Compilation Details page, under the heading: `Promoted to Environments - (Endpoint)`. Select `View API Gateway` and enter your application credentials, then select `View API` to open the API Gateway console.
+
+You should see all the functions, public variables, events and constructor for your smart contract. You will need to instantiate the smart contract first, so find the constructor, populate any expected variables in the BODY DATA section, and click TRY. This will instantiate your smart contract and return the contract address in the JSON response. You will use this in the other REST calls to call the appropriate contract. If you lose it, you can find it in the Kaleido console under your Kaleido environment, in the GATEWAY APIS tab.
+
+You can also download the Swagger JSON spec from the console if you need it.
+
+## Using IPFS
+
+Instructions and background information on IPFS can be found here: https://docs.kaleido.io/kaleido-services/ipfs/
+
+To run an IPFS node in Kaleido:
+
+```
+source create-ipfs-node.sh
+```
+
+To upload a file to IPFS, specify a file name (using the absolute path):
+
+```
+export FILE_PATH_TO_UPLOAD=/Users/edgema/Documents/apps/non-profit-blockchain/LICENSE
+source upload-file-ipfs.sh
+```
+
+To download a file from IPFS:
+
+```
+export FILE_PATH_TO_DOWNLOAD=/Users/edgema/Downloads/LICENSE
+export IPFS_DOWNLOAD_HASH=<hash number from the upload to IPFS call>
+./download-file-ipfs.sh
+```
+`
+
 
 
 
