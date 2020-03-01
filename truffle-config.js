@@ -50,8 +50,8 @@ module.exports = {
     },
     quorum: {
       provider: () => {
-        const appCred = 'u0jpfsz62r:9RXf_ZJqEnV61OJpmctSVqNG4SjxiHwxmJ9iRDtdpwA'; // from application credential widget
-        const connectionURL = 'u0p83rz0cg-u0xqwgi86t-rpc.us0-aws.kaleido.io'; // without protocol (https://)
+        const appCred = 'u0dhsx2rdp:SD8-EzyAt7md1sXKv3tpzd-1fhTbyNRtg28872UJcGE'; // from application credential widget
+        const connectionURL = 'u0x83bqeuj-u0yui9san6-rpc.us0-aws.kaleido.io'; // without protocol (https://)
         return new HTTPProviderRateLimitRetry(`https://${appCred}@${connectionURL}`, 100000);
       },
       network_id: "*", // Match any network id

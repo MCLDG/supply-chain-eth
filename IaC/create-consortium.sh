@@ -5,13 +5,16 @@ brew install jq
 echo Creating Kaleido CONSORTIUM
 #############################################################################################################
 CONSORTIUM=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent --data "{ \
-    \"name\": \"supply-chain\", \
+    \"name\": \"$CONSORTIUM_NAME\", \
     \"description\": \"Supply chain CONSORTIUM\" \
   }" \
   "$APIURL/consortia" | jq)
 
 CONSORTIUM_ID=$(echo $CONSORTIUM | jq -r "._id")
 echo Created Kaleido consortium with id: $CONSORTIUM_ID
+echo Result from create consortium: $CONSORTIUM
+
+[[ "$CONSORTIUM_ID" == "null" ]] && { echo "CONSORTIUM_ID is null - consortium not created. Exiting..." ; exit 1; }
 
 CONSORTIUM=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent "$APIURL/consortia/$CONSORTIUM_ID" | jq)
 

@@ -13,10 +13,13 @@ echo Created Kaleido contract for package label smart contract with id: $PACKAGE
 echo Contract $PACKAGE_LABEL_CONTRACT
 
 #############################################################################################################
-echo Creating Kaleido COMPILED CONTRACT
+# This compiles the solidity code and stores it ready for promotion to specific environments. Compiling produces
+# the bytecode, application binary interface (ABI), and developer docs. It also maintains
+# a pointer back to the exact source code version (the commit)
 #############################################################################################################
+echo Creating Kaleido COMPILED CONTRACT
 COMPILED_PACKAGE_LABEL_CONTRACT=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent --data "{ \
-    \"description\": \"Contract for managing the labels affixed to packaging\", \
+    \"description\": \"Compiled contract for managing the labels affixed to packaging\", \
     \"membership_id\": \"$FARMER_MEMBER_ID\", \
     \"contract_url\": \"https://github.com/MCLDG/supply-chain-eth/blob/master/contracts/PackageLabels.sol\" \
  }" "$APIURL/consortia/$CONSORTIUM_ID/contracts/$PACKAGE_LABEL_CONTRACT_ID/compiled_contracts" | jq)

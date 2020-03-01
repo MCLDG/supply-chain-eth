@@ -1,7 +1,9 @@
 echo Creating application credentials for member: $MEMBER_ID
 
-CREDS=$(curl --header "$HDR_AUTH" --header "$HDR_CT" \
-  --request POST --silent --data "{\"membership_id\":\"$MEMBER_ID\"}" \
+CREDS=$(curl --request POST --header "$HDR_AUTH" --header "$HDR_CT" --silent \
+  --data "{\"membership_id\":\"$MEMBER_ID\", \
+  \"name\": \"$MEMBER_ID-app-creds\"
+  }" \
   "$APIURL/consortia/$CONSORTIUM_ID/environments/$ENVIRONMENT_ID/appcreds" \
   | jq)
 

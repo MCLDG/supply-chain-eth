@@ -107,6 +107,30 @@ export IPFS_NODE_URL_HTTP=$(echo $IPFS_NODE | jq -r ".[0].urls.http")
 export IPFS_NODE_URL_WSS=$(echo $IPFS_NODE | jq -r ".[0].urls.ws")
 export IPFS_NODE_URL_WEBUI=$(echo $IPFS_NODE | jq -r ".[0].urls.webui")
 
+#############################################################################################################
+# Get the Kaleido Document storage service details
+#############################################################################################################
+
+DOCUMENT_STORAGE=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent "$APIURL/consortia/$CONSORTIUM_ID/environments/$ENVIRONMENT_ID/services?name=kaleido-storage-service" | jq)
+
+export DOCUMENT_STORAGE_ID=$(echo $DOCUMENT_STORAGE | jq -r ".[0]._id")
+export DOCUMENT_STORAGE_NAME=$(echo $DOCUMENT_STORAGE | jq -r ".[0].name")
+export DOCUMENT_STORAGE_STORAGE_ID=$(echo $DOCUMENT_STORAGE | jq -r ".[0].details.storage_id")
+export DOCUMENT_STORAGE_URL_HTTP=$(echo $DOCUMENT_STORAGE | jq -r ".[0].urls.http")
+export DOCUMENT_STORAGE_URL_WSS=$(echo $DOCUMENT_STORAGE | jq -r ".[0].urls.ws")
+
+#############################################################################################################
+# Get the Kaleido ID registry service details
+#############################################################################################################
+
+REGISTRY_SERVICE=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent "$APIURL/consortia/$CONSORTIUM_ID/environments/$ENVIRONMENT_ID/services?name=kaleido-registry-service" | jq)
+
+export REGISTRY_SERVICE_ID=$(echo $REGISTRY_SERVICE | jq -r ".[0]._id")
+export REGISTRY_SERVICE_NAME=$(echo $REGISTRY_SERVICE | jq -r ".[0].name")
+export REGISTRY_SERVICE_STORAGE_ID=$(echo $REGISTRY_SERVICE | jq -r ".[0].details.storage_id")
+export REGISTRY_SERVICE_URL_HTTP=$(echo $REGISTRY_SERVICE | jq -r ".[0].urls.http")
+export REGISTRY_SERVICE_URL_WSS=$(echo $REGISTRY_SERVICE | jq -r ".[0].urls.ws")
+
 echo Consortium variables
 echo =====================
 env | grep CONSORTIUM
@@ -133,3 +157,11 @@ env | grep SHIPPER_NODE
 echo IPFS variables
 echo =====================
 env | grep IPFS_NODE
+
+echo Document Storage variables
+echo ==========================
+env | grep DOCUMENT_STORAGE
+
+echo Registry service variables
+echo ==========================
+env | grep REGISTRY_SERVICE
