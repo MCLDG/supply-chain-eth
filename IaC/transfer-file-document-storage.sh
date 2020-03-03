@@ -11,3 +11,9 @@ DOCUMENT_UPLOAD=$(curl --silent --data "{ \
 DOCUMENT_UPLOAD_HASH=$(echo $DOCUMENT_UPLOAD | jq -r ".hash")
 echo Uploaded file to Document Storage. Hash: $DOCUMENT_UPLOAD_HASH
 echo Document upload response: $DOCUMENT_UPLOAD
+
+
+kld://documentstore/m/u0yjymivae/e/u0x83bqeuj/s/u0v9kzyj82/d/shipper-dest to kld://documentstore/m/u0yjymivae/e/u0x83bqeuj/s/u0v9kzyj82/d/farmer-dest
+
+u0x83bqeuj-u0v9kzyj82-documentstore-farmer-dest
+u0x83bqeuj-u0v9kzyj82-documentstore-shipper-dest

@@ -274,6 +274,8 @@ contract.address
 contract.totalSupply()
 let accounts = await web3.eth.getAccounts()
 
+contract.setBatchWeightInKg(500)
+contract.batchWeightInKg()
 #create one token and transfer it
 contract._mint(accounts[0]);
 contract.totalSupply();
@@ -288,6 +290,10 @@ contract.ownerOf(2);
 contract.safeTransferFrom(accounts[1] , accounts[0], 2);
 contract.ownerOf(2);
 
+#update the batch with a weight
+contract.batchWeightInKg()
+contract.setBatchWeightInKg(500)
+contract.batchWeightInKg()
 
 ```
 

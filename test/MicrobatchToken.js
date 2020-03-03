@@ -2,6 +2,7 @@ const MicrobatchToken = artifacts.require("./MicrobatchToken.sol");
 
 contract('MicrobatchToken', (accounts) => {
   let microbatchToken;
+  let tokenId;
 
   before(async () => {
     microbatchToken = await MicrobatchToken.deployed()
@@ -34,6 +35,17 @@ contract('MicrobatchToken', (accounts) => {
       assert.equal(event.returnValues.from, "0x0000000000000000000000000000000000000000")
       assert.equal(event.returnValues.to, accounts[0])
       assert.equal(event.returnValues.tokenId, 1)
+      tokenId = event.returnValues.tokenId
+    })
+
+    it('can associate an asset with the token', async () => {
+      await microbatchToken.setTokenAsset(tokenId, "farmer facility","raw", "harvested", "kg", "500")
+      events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
+      const event = events[0]
+      console.log(event)
+      assert.equal(event.returnValues.tokenOwner, accounts[0])
+      assert.equal(event.returnValues.tokenId, tokenId)
+      assert.equal(event.returnValues.assetQuantity, 500)
     })
 
     it('can transfer token from one account to another', async () => {
@@ -48,7 +60,7 @@ contract('MicrobatchToken', (accounts) => {
       assert.equal(event.returnValues.tokenId, 1)
     })
 
-    it('account cannot transfer a token it does not own', async () => {
+    it('cannot transfer a token the account does not own', async () => {
       try {
         await microbatchToken.safeTransferFrom(accounts[0], accounts[1], 1);
       } catch (error) {
@@ -56,14 +68,15 @@ contract('MicrobatchToken', (accounts) => {
       }
     })
 
-    it('account that owns the token cannot transfer a token unless it is approved', async () => {
+    it('cannot transfer a token unless the transfer caller is the token owner', async () => {
       try {
-        await microbatchToken.safeTransferFrom(accounts[1], accounts[0], 1);
+        await microbatchToken.safeTransferFrom(accounts[1], accounts[2], 1);
       } catch (error) {
         assert.throws(() => { throw new Error(error) }, Error, "ERC721: transfer caller is not owner nor approved");
       }
     })
-    it('account cannot approve transferring a token it does not own', async () => {
+
+    it('cannot approve transferring a token when the account does not own the token', async () => {
       try {
         await microbatchToken.approve(accounts[0], 1);
       } catch (error) {
@@ -71,7 +84,7 @@ contract('MicrobatchToken', (accounts) => {
       }
     })
 
-    it('account cannot approve transferring a token it does not own', async () => {
+    it('cannot approve the transfer of a token if the token holder and approve account are equal', async () => {
       try {
         await microbatchToken.approve(accounts[1], 1);
       } catch (error) {
@@ -79,41 +92,20 @@ contract('MicrobatchToken', (accounts) => {
       }
     })
 
-    it('can approve token approval from 0x0 account', async () => {
-      try {
-        let address = await microbatchToken.getApproved(1);
-        let owner = await microbatchToken.ownerOf(1);
-        console.log("approved address: " + address);
-        console.log("owner address: " + owner);
-        await microbatchToken.approve(accounts[1], 1).send({
-          from: accounts[1]
-        });;
-      } catch (error) {
-        assert.throws(() => { throw new Error(error) }, Error, "ERC721: approval to current owner");
-      }
+    it('can approve another account to transfer a token if account is the token owner', async () => {
+      await microbatchToken.approve(accounts[2], 1, { from: accounts[1] });
     })
-    // it('account can approve transferring a token it does own', async () => {
-    //   try {
-    //     let address = await microbatchToken.getApproved(1);
-    //     console.log("approved address: " + address);
-    //     await microbatchToken.approve(accounts[0], 1).send({
-    //       from: accounts[1]
-    //     });;
-    //     assert(true);
-    //   } catch (error) {
-    //     assert(false);
-    //   }
-    // })
-    // it('account can transfer a token it does not own if it receives approval', async () => {
-    //   try {
-    //     await microbatchToken.approve(accounts[0], 1).send({
-    //       from: accounts[1]
-    //     });;
-    //     await microbatchToken.safeTransferFrom(accounts[1], accounts[0], 1);
-    //     assert(true);
-    //   } catch (error) {
-    //     assert(false);
-    //   }
-    // })
+
+    it('can transfer token from one account to another using an approved account, i.e. transfer caller is not the token holder', async () => {
+      await microbatchToken.safeTransferFrom(accounts[1], accounts[2], 1, { from: accounts[2] });
+      let owner = await microbatchToken.ownerOf(1)
+      assert.equal(owner, accounts[2])
+      assert.notEqual(owner, accounts[1])
+      events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
+      const event = events[0]
+      assert.equal(event.returnValues.from, accounts[1])
+      assert.equal(event.returnValues.to, accounts[2])
+      assert.equal(event.returnValues.tokenId, 1)
+    })
   })
 })

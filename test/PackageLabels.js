@@ -20,9 +20,10 @@ contract('PackageLabels', (accounts) => {
       const result = await packageLabels.registerPackageLabel("batch1", 1);
       let batchSize = await packageLabels.getPackageLabelBatchSize("batch1");
       assert.equal(batchSize, 1);
-      const event = result.logs[0].args
-      assert.equal(event.batchId, "batch1")
-      assert.equal(event.batchSize.toNumber(), 1)
+      events = await packageLabels.getPastEvents('PackageLabelBatchEvent', { toBlock: 'latest' })
+      const event = events[0]
+      assert.equal(event.returnValues.batchId, "batch1")
+      assert.equal(event.returnValues.batchSize, 1)
     })
 
     it('can get the batch size of a registered batch of packaging labels', async () => {

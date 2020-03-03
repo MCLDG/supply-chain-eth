@@ -12,7 +12,7 @@ contract PackageLabels {
 
     mapping(string => PackageLabel) public packageLabels;
 
-    event PackageLabelBatchCreatedEvent(
+    event PackageLabelBatchEvent(
         string batchId,
         uint256 batchSize,
         string labelCertificateHashIPFS,
@@ -32,7 +32,7 @@ contract PackageLabels {
         );
         packageLabels[batchId] = PackageLabel(batchId, batchSize, "", "");
         packageLabelCount++;
-        emit PackageLabelBatchCreatedEvent(batchId, batchSize, "", "");
+        emit PackageLabelBatchEvent(batchId, batchSize, "", "");
     }
 
     function getPackageLabelBatchSize(string memory batchId)
