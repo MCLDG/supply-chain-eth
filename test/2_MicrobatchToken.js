@@ -1,11 +1,17 @@
 const MicrobatchToken = artifacts.require("./MicrobatchToken.sol");
+const Facility = artifacts.require("./Facility.sol");
 
 contract('MicrobatchToken', (accounts) => {
   let microbatchToken;
-  let tokenId;
+  let facility;
+  let firstTokenId = 1;
+  let secondTokenId = 2;
+  let glnFacility1 = 123; // as used in Facility.js, represents the farm
+  let glnFacility2 = 456; // as used in Facility.js, represents the co-op
 
   before(async () => {
     microbatchToken = await MicrobatchToken.deployed()
+    facility = await Facility.deployed()
     console.log(accounts)
   })
 
@@ -24,6 +30,23 @@ contract('MicrobatchToken', (accounts) => {
       assert.equal(symbol, "MBAT")
     })
 
+    it('can set the address of the Facilties smart contract', async () => {
+      try {
+        await microbatchToken.setFacilityAddress(facility.address);
+      } catch (error) {
+        assert.throws(() => { throw new Error(error) }, Error, "Facility address must contain a valid value when calling setFacilityAddress");
+      }
+    })
+
+    it('can query a facility added during testing of the Facilties smart contract', async () => {
+      let facilityDetail = await facility.get(glnFacility2);
+      console.log(facilityDetail)
+      assert.equal(facilityDetail[0], glnFacility2)
+      assert.equal(facilityDetail[1], "Charlie Co-op")
+      assert.equal(facilityDetail[3], "active")
+      assert.equal(facilityDetail[4], false)
+    })
+
     it('can mint a new token', async () => {
       await microbatchToken._mint(accounts[0]);
       let totalSupply = await microbatchToken.totalSupply()
@@ -34,17 +57,15 @@ contract('MicrobatchToken', (accounts) => {
       const event = events[0]
       assert.equal(event.returnValues.from, "0x0000000000000000000000000000000000000000")
       assert.equal(event.returnValues.to, accounts[0])
-      assert.equal(event.returnValues.tokenId, 1)
-      tokenId = event.returnValues.tokenId
+      assert.equal(event.returnValues.tokenId, firstTokenId)
     })
 
     it('can associate an asset with the token', async () => {
-      await microbatchToken.setTokenAsset(tokenId, "farmer facility","raw", "harvested", "kg", "500")
+      await microbatchToken.setTokenAsset(firstTokenId, glnFacility1, "raw", "harvested", "kg", 500)
       events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
       const event = events[0]
-      console.log(event)
       assert.equal(event.returnValues.tokenOwner, accounts[0])
-      assert.equal(event.returnValues.tokenId, tokenId)
+      assert.equal(event.returnValues.tokenId, firstTokenId)
       assert.equal(event.returnValues.assetQuantity, 500)
     })
 
@@ -57,7 +78,7 @@ contract('MicrobatchToken', (accounts) => {
       const event = events[0]
       assert.equal(event.returnValues.from, accounts[0])
       assert.equal(event.returnValues.to, accounts[1])
-      assert.equal(event.returnValues.tokenId, 1)
+      assert.equal(event.returnValues.tokenId, firstTokenId)
     })
 
     it('cannot transfer a token the account does not own', async () => {
@@ -105,7 +126,57 @@ contract('MicrobatchToken', (accounts) => {
       const event = events[0]
       assert.equal(event.returnValues.from, accounts[1])
       assert.equal(event.returnValues.to, accounts[2])
-      assert.equal(event.returnValues.tokenId, 1)
+      assert.equal(event.returnValues.tokenId, firstTokenId)
     })
+
+    it('can mint a second token', async () => {
+      await microbatchToken._mint(accounts[0]);
+      let totalSupply = await microbatchToken.totalSupply()
+      assert.equal(totalSupply, 2)
+      let owner = await microbatchToken.ownerOf(2)
+      assert.equal(owner, accounts[0])
+      events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
+      const event = events[0]
+      assert.equal(event.returnValues.from, "0x0000000000000000000000000000000000000000")
+      assert.equal(event.returnValues.to, accounts[0])
+      assert.equal(event.returnValues.tokenId, secondTokenId)
+    })
+
+    it('can associate an asset with the token', async () => {
+      await microbatchToken.setTokenAsset(secondTokenId, glnFacility1,"raw", "drying", "kg", 500)
+      events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
+      const event = events[0]
+      assert.equal(event.returnValues.tokenOwner, accounts[0])
+      assert.equal(event.returnValues.tokenId, secondTokenId)
+      assert.equal(event.returnValues.facilityId, glnFacility1)
+      assert.equal(event.returnValues.assetProcess, "drying")
+      assert.equal(event.returnValues.assetQuantity, 500)
+    })
+
+    it('each token is associated with a different asset', async () => {
+      let asset = await microbatchToken.getTokenAsset(firstTokenId)
+      console.log(asset)
+      assert.equal(asset[0], firstTokenId)
+      assert.equal(asset[1], glnFacility1)
+      assert.equal(asset[3], "harvested")
+      assert.equal(asset[5], 500)
+
+      asset = await microbatchToken.getTokenAsset(secondTokenId)
+      assert.equal(asset[0], secondTokenId)
+      assert.equal(asset[1], glnFacility1)
+      assert.equal(asset[3], "drying")
+      assert.equal(asset[5], 500)
+    })
+
+    // A co-op does not produce assets. It takes as input an asset, raw beans, and transforms it to washed and dried beans
+    // It can therefore not be used as a facility that creates new assets
+    it('cannot associate an asset created in a facility that does not produce assets', async () => {
+      try {
+        await microbatchToken.setTokenAsset(secondTokenId, glnFacility2,"raw", "drying", "kg", 500)
+      } catch (error) {
+        assert.throws(() => { throw new Error(error) }, Error, "Assets can only be created at facilities that produce/commission raw assets");
+      }
+    })
+
   })
 })
