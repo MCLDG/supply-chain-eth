@@ -12,11 +12,43 @@ contract('MicrobatchToken', (accounts) => {
   before(async () => {
     microbatchToken = await MicrobatchToken.deployed()
     facility = await Facility.deployed()
+    console.log("ACCOUNTS")
     console.log(accounts)
   })
 
-  describe('deployment', async () => {
-    it('deploys and initialises successfully', async () => {
+  describe('deployment-facility', async () => {
+    it('facility deploys and initialises successfully', async () => {
+      const address = await facility.address
+      assert.notEqual(address, 0x0)
+      assert.notEqual(address, '')
+      assert.notEqual(address, null)
+      assert.notEqual(address, undefined)
+    })
+
+    it('can add a new facility', async () => {
+      const result = await facility.createFacility(glnFacility1, "Pacamara Farm", "Organic coffee farm producing pacamara coffee beans", "active", true, "1504 Stone Ave, Gold Coast");
+      events = await facility.getPastEvents('FacilityEvent', { toBlock: 'latest' })
+      const event = events[0]
+      assert.equal(event.returnValues.gln, glnFacility1)
+    })
+
+    it('can add a second facility', async () => {
+      const result = await facility.createFacility(glnFacility2, "Charlie Co-op", "Organic co-op for washing and drying coffee beans", "active", false, "Unit A, Portland Mountain Road, Gold Coast");
+      events = await facility.getPastEvents('FacilityEvent', { toBlock: 'latest' })
+      const event = events[0]
+      assert.equal(event.returnValues.gln, glnFacility2)
+    })
+
+    it('can query a facility that was previously added', async () => {
+      let facilityDetail = await facility.get(glnFacility2);
+      assert.equal(facilityDetail.facilityName, "Charlie Co-op")
+      assert.equal(facilityDetail.facilityStatus, "active")
+      assert.equal(facilityDetail.assetCommission, false)
+    })
+  })
+
+  describe('deployment-microbatchToken', async () => {
+    it('microbatchToken deploys and initialises successfully', async () => {
       const address = await microbatchToken.address
       assert.notEqual(address, 0x0)
       assert.notEqual(address, '')
@@ -40,11 +72,9 @@ contract('MicrobatchToken', (accounts) => {
 
     it('can query a facility added during testing of the Facilties smart contract', async () => {
       let facilityDetail = await facility.get(glnFacility2);
-      console.log(facilityDetail)
-      assert.equal(facilityDetail[0], glnFacility2)
-      assert.equal(facilityDetail[1], "Charlie Co-op")
-      assert.equal(facilityDetail[3], "active")
-      assert.equal(facilityDetail[4], false)
+      assert.equal(facilityDetail.facilityName, "Charlie Co-op")
+      assert.equal(facilityDetail.facilityStatus, "active")
+      assert.equal(facilityDetail.assetCommission, false)
     })
 
     it('can mint a new token', async () => {
@@ -142,20 +172,19 @@ contract('MicrobatchToken', (accounts) => {
       assert.equal(event.returnValues.tokenId, secondTokenId)
     })
 
-    it('can associate an asset with the token', async () => {
-      await microbatchToken.setTokenAsset(secondTokenId, glnFacility1,"raw", "drying", "kg", 500)
+    it('can associate an asset with the second token', async () => {
+      await microbatchToken.setTokenAsset(secondTokenId, glnFacility1,"raw", "harvested", "kg", 490)
       events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
       const event = events[0]
       assert.equal(event.returnValues.tokenOwner, accounts[0])
       assert.equal(event.returnValues.tokenId, secondTokenId)
       assert.equal(event.returnValues.facilityId, glnFacility1)
-      assert.equal(event.returnValues.assetProcess, "drying")
-      assert.equal(event.returnValues.assetQuantity, 500)
+      assert.equal(event.returnValues.assetProcess, "harvested")
+      assert.equal(event.returnValues.assetQuantity, 490)
     })
 
     it('each token is associated with a different asset', async () => {
       let asset = await microbatchToken.getTokenAsset(firstTokenId)
-      console.log(asset)
       assert.equal(asset[0], firstTokenId)
       assert.equal(asset[1], glnFacility1)
       assert.equal(asset[3], "harvested")
@@ -164,19 +193,35 @@ contract('MicrobatchToken', (accounts) => {
       asset = await microbatchToken.getTokenAsset(secondTokenId)
       assert.equal(asset[0], secondTokenId)
       assert.equal(asset[1], glnFacility1)
-      assert.equal(asset[3], "drying")
-      assert.equal(asset[5], 500)
+      assert.equal(asset[3], "harvested")
+      assert.equal(asset[5], 490)
     })
 
     // A co-op does not produce assets. It takes as input an asset, raw beans, and transforms it to washed and dried beans
     // It can therefore not be used as a facility that creates new assets
     it('cannot associate an asset created in a facility that does not produce assets', async () => {
       try {
-        await microbatchToken.setTokenAsset(secondTokenId, glnFacility2,"raw", "drying", "kg", 500)
+        await microbatchToken.setTokenAsset(secondTokenId, glnFacility2, "raw", "drying", "kg", 500)
       } catch (error) {
         assert.throws(() => { throw new Error(error) }, Error, "Assets can only be created at facilities that produce/commission raw assets");
       }
     })
 
+    // Transform an asset, i.e. from raw coffee beans to dried beans
+    it('can transform an asset', async () => {
+      try {
+        await microbatchToken.transformTokenAsset(secondTokenId, glnFacility2, "raw", "drying", "kg", 450)
+      } catch (error) {
+        assert.throws(() => { throw new Error(error) }, Error, "Assets can only be created at facilities that produce/commission raw assets");
+      }
+    })
+
+    it('can get the transform history of an asset', async () => {
+        let history = await microbatchToken.getTransformHistory(secondTokenId)
+        assert.equal(history[0], secondTokenId)
+        assert.equal(history[1], glnFacility1)
+        assert.equal(history[3], "harvested")
+        assert.equal(history[4], 490)
+      })
   })
 })
