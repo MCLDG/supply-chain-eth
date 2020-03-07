@@ -1,13 +1,14 @@
 const MicrobatchToken = artifacts.require("./MicrobatchToken.sol");
 const Facility = artifacts.require("./Facility.sol");
+const { BN, constants, balance, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 
 contract('MicrobatchToken', (accounts) => {
   let microbatchToken;
   let facility;
-  let firstTokenId = 1;
-  let secondTokenId = 2;
-  let glnFacility1 = 123; // as used in Facility.js, represents the farm
-  let glnFacility2 = 456; // as used in Facility.js, represents the co-op
+  const firstTokenId = 1;
+  const secondTokenId = 2;
+  const glnFacility1 = 123; // as used in Facility.js, represents the farm
+  const glnFacility2 = 456; // as used in Facility.js, represents the co-op
 
   before(async () => {
     microbatchToken = await MicrobatchToken.deployed()
@@ -26,21 +27,21 @@ contract('MicrobatchToken', (accounts) => {
     })
 
     it('can add a new facility', async () => {
-      const result = await facility.createFacility(glnFacility1, "Pacamara Farm", "Organic coffee farm producing pacamara coffee beans", "active", true, "1504 Stone Ave, Gold Coast");
-      events = await facility.getPastEvents('FacilityEvent', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.gln, glnFacility1)
+      const receipt = await facility.createFacility(glnFacility1, "Pacamara Farm", "Organic coffee farm producing pacamara coffee beans", "active", true, "1504 Stone Ave, Gold Coast");
+      expectEvent(receipt, 'FacilityEvent', {
+        gln: new BN(glnFacility1)
+      });
     })
 
     it('can add a second facility', async () => {
-      const result = await facility.createFacility(glnFacility2, "Charlie Co-op", "Organic co-op for washing and drying coffee beans", "active", false, "Unit A, Portland Mountain Road, Gold Coast");
-      events = await facility.getPastEvents('FacilityEvent', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.gln, glnFacility2)
+      const receipt = await facility.createFacility(glnFacility2, "Charlie Co-op", "Organic co-op for washing and drying coffee beans", "active", false, "Unit A, Portland Mountain Road, Gold Coast");
+      expectEvent(receipt, 'FacilityEvent', {
+        gln: new BN(glnFacility2)
+      });
     })
 
     it('can query a facility that was previously added', async () => {
-      let facilityDetail = await facility.get(glnFacility2);
+      const facilityDetail = await facility.get(glnFacility2);
       assert.equal(facilityDetail.facilityName, "Charlie Co-op")
       assert.equal(facilityDetail.facilityStatus, "active")
       assert.equal(facilityDetail.assetCommission, false)
@@ -54,10 +55,10 @@ contract('MicrobatchToken', (accounts) => {
       assert.notEqual(address, '')
       assert.notEqual(address, null)
       assert.notEqual(address, undefined)
-      let totalSupply = await microbatchToken.totalSupply()
+      const totalSupply = await microbatchToken.totalSupply()
       assert.equal(totalSupply, 0)
-      let name = await microbatchToken.name()
-      let symbol = await microbatchToken.symbol()
+      const name = await microbatchToken.name()
+      const symbol = await microbatchToken.symbol()
       assert.equal(name, "MICROBATCH")
       assert.equal(symbol, "MBAT")
     })
@@ -71,44 +72,48 @@ contract('MicrobatchToken', (accounts) => {
     })
 
     it('can query a facility added during testing of the Facilties smart contract', async () => {
-      let facilityDetail = await facility.get(glnFacility2);
+      const facilityDetail = await facility.get(glnFacility2);
       assert.equal(facilityDetail.facilityName, "Charlie Co-op")
       assert.equal(facilityDetail.facilityStatus, "active")
       assert.equal(facilityDetail.assetCommission, false)
     })
 
     it('can mint a new token', async () => {
-      await microbatchToken._mint(accounts[0]);
-      let totalSupply = await microbatchToken.totalSupply()
+      const receipt = await microbatchToken._mint(accounts[0]);
+      // events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
+      // const event = events[0]
+      // assert.equal(event.returnValues.from, "0x0000000000000000000000000000000000000000")
+      // assert.equal(event.returnValues.to, accounts[0])
+      // assert.equal(event.returnValues.tokenId, firstTokenId)
+      expectEvent(receipt, 'Transfer', {
+        from: "0x0000000000000000000000000000000000000000", to: accounts[0], tokenId: new BN(firstTokenId)
+      });
+      const totalSupply = await microbatchToken.totalSupply()
       assert.equal(totalSupply, 1)
-      let owner = await microbatchToken.ownerOf(1)
+      const owner = await microbatchToken.ownerOf(1)
       assert.equal(owner, accounts[0])
-      events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.from, "0x0000000000000000000000000000000000000000")
-      assert.equal(event.returnValues.to, accounts[0])
-      assert.equal(event.returnValues.tokenId, firstTokenId)
     })
 
     it('can associate an asset with the token', async () => {
-      await microbatchToken.setTokenAsset(firstTokenId, glnFacility1, "raw", "harvested", "kg", 500)
-      events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.tokenOwner, accounts[0])
-      assert.equal(event.returnValues.tokenId, firstTokenId)
-      assert.equal(event.returnValues.assetQuantity, 500)
+      const receipt = await microbatchToken.setTokenAsset(firstTokenId, glnFacility1, "raw", "harvested", "kg", 500)
+      // events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
+      // const event = events[0]
+      // assert.equal(event.returnValues.tokenOwner, )
+      // assert.equal(event.returnValues.tokenId, firstTokenId)
+      // assert.equal(event.returnValues.assetQuantity, 500)
+      expectEvent(receipt, 'TokenAssetEvent', {
+        tokenOwner: accounts[0], tokenId: new BN(firstTokenId), assetQuantity: new BN(500)
+      });
     })
 
     it('can transfer token from one account to another', async () => {
-      await microbatchToken.safeTransferFrom(accounts[0], accounts[1], 1);
-      let owner = await microbatchToken.ownerOf(1)
+      const receipt = await microbatchToken.safeTransferFrom(accounts[0], accounts[1], 1);
+      expectEvent(receipt, 'Transfer', {
+        from: accounts[0], to: accounts[1], tokenId: new BN(firstTokenId)
+      });    
+      const owner = await microbatchToken.ownerOf(1)
       assert.equal(owner, accounts[1])
       assert.notEqual(owner, accounts[0])
-      events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.from, accounts[0])
-      assert.equal(event.returnValues.to, accounts[1])
-      assert.equal(event.returnValues.tokenId, firstTokenId)
     })
 
     it('cannot transfer a token the account does not own', async () => {
@@ -148,39 +153,43 @@ contract('MicrobatchToken', (accounts) => {
     })
 
     it('can transfer token from one account to another using an approved account, i.e. transfer caller is not the token holder', async () => {
-      await microbatchToken.safeTransferFrom(accounts[1], accounts[2], 1, { from: accounts[2] });
-      let owner = await microbatchToken.ownerOf(1)
+      const receipt = await microbatchToken.safeTransferFrom(accounts[1], accounts[2], 1, { from: accounts[2] });
+      // events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
+      // const event = events[0]
+      // assert.equal(event.returnValues.from, accounts[1])
+      // assert.equal(event.returnValues.to, accounts[2])
+      // assert.equal(event.returnValues.tokenId, firstTokenId)
+      expectEvent(receipt, 'Transfer', {
+        from: accounts[1], to: accounts[2], tokenId: new BN(firstTokenId)
+      });    
+      const owner = await microbatchToken.ownerOf(1)
       assert.equal(owner, accounts[2])
       assert.notEqual(owner, accounts[1])
-      events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.from, accounts[1])
-      assert.equal(event.returnValues.to, accounts[2])
-      assert.equal(event.returnValues.tokenId, firstTokenId)
     })
 
     it('can mint a second token', async () => {
-      await microbatchToken._mint(accounts[0]);
-      let totalSupply = await microbatchToken.totalSupply()
+      const receipt = await microbatchToken._mint(accounts[0]);
+      expectEvent(receipt, 'Transfer', {
+        from: "0x0000000000000000000000000000000000000000", to: accounts[0], tokenId: new BN(secondTokenId)
+      });    
+      const totalSupply = await microbatchToken.totalSupply()
       assert.equal(totalSupply, 2)
-      let owner = await microbatchToken.ownerOf(2)
+      const owner = await microbatchToken.ownerOf(2)
       assert.equal(owner, accounts[0])
-      events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.from, "0x0000000000000000000000000000000000000000")
-      assert.equal(event.returnValues.to, accounts[0])
-      assert.equal(event.returnValues.tokenId, secondTokenId)
     })
 
     it('can associate an asset with the second token', async () => {
-      await microbatchToken.setTokenAsset(secondTokenId, glnFacility1,"raw", "harvested", "kg", 490)
-      events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.tokenOwner, accounts[0])
-      assert.equal(event.returnValues.tokenId, secondTokenId)
-      assert.equal(event.returnValues.facilityId, glnFacility1)
-      assert.equal(event.returnValues.assetProcess, "harvested")
-      assert.equal(event.returnValues.assetQuantity, 490)
+      const receipt = await microbatchToken.setTokenAsset(secondTokenId, glnFacility1,"raw", "harvested", "kg", 490)
+      // events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
+      // const event = events[0]
+      // assert.equal(event.returnValues.tokenOwner, accounts[0])
+      // assert.equal(event.returnValues.tokenId, secondTokenId)
+      // assert.equal(event.returnValues.facilityId, glnFacility1)
+      // assert.equal(event.returnValues.assetProcess, "harvested")
+      // assert.equal(event.returnValues.assetQuantity, 490)
+      expectEvent(receipt, 'TokenAssetEvent', {
+        tokenOwner: accounts[0], tokenId: new BN(secondTokenId), facilityId: new BN(glnFacility1), assetProcess: "harvested", assetQuantity: new BN(490)
+      });    
     })
 
     it('each token is associated with a different asset', async () => {
@@ -217,7 +226,7 @@ contract('MicrobatchToken', (accounts) => {
     })
 
     it('can get the transform history of an asset', async () => {
-        let history = await microbatchToken.getTransformHistory(secondTokenId)
+        const history = await microbatchToken.getTransformHistory(secondTokenId)
         assert.equal(history[0], secondTokenId)
         assert.equal(history[1], glnFacility1)
         assert.equal(history[3], "harvested")

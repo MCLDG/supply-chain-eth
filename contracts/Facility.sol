@@ -20,7 +20,7 @@ contract Facility {
         string facilityDescription;
         string facilityStatus;
         bool assetCommission;   // whether the facility commissions assets, i.e. is the originator of the raw asset as
-                                //opposed to a processing facility. A farm would be an example.
+                                // opposed to a processing facility. A farm would be an example.
         PhysicalAddress facilityAddress;
     }
 

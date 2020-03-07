@@ -1,4 +1,5 @@
 const Facility = artifacts.require("./Facility.sol");
+const { BN, constants, balance, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 
 contract('Facility', (accounts) => {
   let facility;
@@ -19,17 +20,17 @@ contract('Facility', (accounts) => {
     })
 
     it('can add a new facility', async () => {
-      const result = await facility.createFacility(glnFacility1, "Pacamara Farm", "Organic coffee farm producing pacamara coffee beans", "active", true, "1504 Stone Ave, Gold Coast");
-      events = await facility.getPastEvents('FacilityEvent', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.gln, glnFacility1)
+      const receipt = await facility.createFacility(glnFacility1, "Pacamara Farm", "Organic coffee farm producing pacamara coffee beans", "active", true, "1504 Stone Ave, Gold Coast");
+      expectEvent(receipt, 'FacilityEvent', {
+        gln: new BN(glnFacility1)
+      });
     })
 
     it('can add a second facility', async () => {
-      const result = await facility.createFacility(glnFacility2, "Charlie Co-op", "Organic co-op for washing and drying coffee beans", "active", false, "Unit A, Portland Mountain Road, Gold Coast");
-      events = await facility.getPastEvents('FacilityEvent', { toBlock: 'latest' })
-      const event = events[0]
-      assert.equal(event.returnValues.gln, glnFacility2)
+      const receipt = await facility.createFacility(glnFacility2, "Charlie Co-op", "Organic co-op for washing and drying coffee beans", "active", false, "Unit A, Portland Mountain Road, Gold Coast");
+      expectEvent(receipt, 'FacilityEvent', {
+        gln: new BN(glnFacility2)
+      });
     })
 
     it('can query a facility that was previously added', async () => {
