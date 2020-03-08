@@ -2,38 +2,35 @@ pragma solidity ^0.5.14;
 
 import "../node_modules/openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
 import "../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./Facility.sol";
+import "./BusinessLocation.sol";
 
 contract MicrobatchToken is ERC721Full, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private tokenIds;
 
-    Facility facility;
+    BusinessLocation businessLocation;
 
     // emitted when an asset is associated with the token
+    event TokenAssetAssociationEvent(
+        address tokenOwner,
+        uint256 tokenId,
+        uint256 businessLocationId,
+        string bizStep,
+        string uom,
+        uint256 quantity
+    );
+
+    // emitted when an event occurs against an asset, for e.g. a TRANSFORM event from coffee beans to ground coffee
+    // these events are based on EPCIS events, such as TRANSFORM, OBSERVE, COMMISSION, etc.
     event TokenAssetEvent(
         address tokenOwner,
         uint256 tokenId,
-        uint256 facilityId,
-        string assetState,
-        string assetProcess,
-        string assetUOM,
-        uint256 assetQuantity
-    );
-
-    // emitted when an asset is transformed, for e.g. from coffee beans to ground coffee
-    event TokenAssetTransformEvent(
-        address tokenOwner,
-        uint256 tokenId,
-        uint256 facilityFromId,
-        uint256 facilityToId,
-        string assetFromState,
-        string assetToState,
-        string assetFromProcess,
-        string assetToProcess,
-        uint256 assetFromQuantity,
-        uint256 assetToQuantity,
-        uint transformTimestamp
+        string action, // EPCIS event, such as OBSERVE, TRANSFORM
+        string bizStep, // the event, such as SHIPPED
+        uint256 bizLocation,
+        uint256 inputQuantity,
+        uint256 outputQuantity,
+        uint eventTime
     );
 
     // The ERC721 standard recommends storing token metadata off-chain, in storage such as IPFS or similar, and
@@ -42,11 +39,10 @@ contract MicrobatchToken is ERC721Full, Ownable {
 
     // The current state of the asset is captured in this struct, and the associated mapping below
     struct Asset {
-        uint256 facilityId; // facility currently housing the asset
-        string assetState; // state asset is currently in, such as raw, finished
-        string assetProcess; // step asset is currently in, such as wash, dry, roast
-        string assetUOM; //unit of measure, such as KG
-        uint256 assetQuantity; // measured in terms of UOM, e.g. 500kg
+        uint256 businessLocationId; // businessLocation currently housing the asset
+        string bizStep; // step asset is currently in, such as wash, dry, roast
+        string uom; //unit of measure, such as KG
+        uint256 quantity; // measured in terms of UOM, e.g. 500kg
     }
 
     // Mapping from token ID to asset represented by the token
@@ -73,12 +69,12 @@ contract MicrobatchToken is ERC721Full, Ownable {
         _mint(to, newItemId);
     }
 
-    function setFacilityAddress(Facility facilityAddress) public {
+    function setBusinessLocationAddress(BusinessLocation businessLocationAddress) public {
         require(
-            address(uint160(address(facilityAddress))) > address(0),
-            "Facility address must contain a valid value when calling setFacilityAddress"
+            address(uint160(address(businessLocationAddress))) > address(0),
+            "BusinessLocation address must contain a valid value"
         );
-        facility = facilityAddress;
+        businessLocation = businessLocationAddress;
     }
 
     /**
@@ -87,22 +83,21 @@ contract MicrobatchToken is ERC721Full, Ownable {
         - the pre-transformation state of the asset is pushed to the end of the AssetTransformation array
         - the post-transformation state of the asset is updated in tokenAssets
     */
-    function transformTokenAsset(
+    function transformAsset(
         uint256 tokenId,
-        uint256 facilityId,
-        string memory assetState,
-        string memory assetProcess,
-        string memory assetUOM,
-        uint256 assetQuantity
+        uint256 businessLocationId,
+        uint256 inputQuantity,
+        uint256 outputQuantity,
+        string memory bizStep,
+        string memory uom
     ) public {
         Asset storage postTransformAsset = tokenAssets[tokenId];
         // store the pre-transformation state of the asset
         Asset memory preTransformAsset = Asset(
-            postTransformAsset.facilityId,
-            postTransformAsset.assetState,
-            postTransformAsset.assetProcess,
-            postTransformAsset.assetUOM,
-            postTransformAsset.assetQuantity
+            postTransformAsset.businessLocationId,
+            postTransformAsset.bizStep,
+            postTransformAsset.uom,
+            postTransformAsset.quantity
         );
         // push the pre-transformation state of the asset to the transform array
         AssetTransformation[] storage transformArray = tokenAssetTransformations[tokenId];
@@ -112,22 +107,18 @@ contract MicrobatchToken is ERC721Full, Ownable {
         );
         // update the current state of the asset to the post-transformation state
         uint numberOfTransforms = transformArray.push(transform);
-        postTransformAsset.facilityId = facilityId;
-        postTransformAsset.assetState = assetState;
-        postTransformAsset.assetProcess = assetProcess;
-        postTransformAsset.assetUOM = assetUOM;
-        postTransformAsset.assetQuantity = assetQuantity;
-        emit TokenAssetTransformEvent(
+        postTransformAsset.businessLocationId = businessLocationId;
+        postTransformAsset.bizStep = bizStep;
+        postTransformAsset.uom = uom;
+        postTransformAsset.quantity = outputQuantity;
+        emit TokenAssetEvent(
             ownerOf(tokenId),
             tokenId,
-            transformArray[numberOfTransforms - 1].asset.facilityId,
-            numberOfTransforms > 1 ? transformArray[numberOfTransforms - 2].asset.facilityId : 0,
-            transformArray[numberOfTransforms - 1].asset.assetState,
-            numberOfTransforms > 1 ? transformArray[numberOfTransforms - 2].asset.assetState : "",
-            transformArray[numberOfTransforms - 1].asset.assetProcess,
-            numberOfTransforms > 1 ? transformArray[numberOfTransforms - 2].asset.assetProcess : "",
-            transformArray[numberOfTransforms - 1].asset.assetQuantity,
-            numberOfTransforms > 1 ? transformArray[numberOfTransforms - 2].asset.assetQuantity : 0,
+            "TRANSFORM",
+            bizStep,
+            businessLocationId,
+            inputQuantity,
+            outputQuantity,
             block.timestamp
         );
     }
@@ -143,7 +134,6 @@ contract MicrobatchToken is ERC721Full, Ownable {
             uint256,
             uint256,
             string memory,
-            string memory,
             uint256,
             uint256
         )
@@ -152,10 +142,9 @@ contract MicrobatchToken is ERC721Full, Ownable {
         uint numberOfTransforms = transformArray.length;
         return (
             tokenId,
-            transformArray[numberOfTransforms - 1].asset.facilityId,
-            transformArray[numberOfTransforms - 1].asset.assetState,
-            transformArray[numberOfTransforms - 1].asset.assetProcess,
-            transformArray[numberOfTransforms - 1].asset.assetQuantity,
+            transformArray[numberOfTransforms - 1].asset.businessLocationId,
+            transformArray[numberOfTransforms - 1].asset.bizStep,
+            transformArray[numberOfTransforms - 1].asset.quantity,
             transformArray[numberOfTransforms - 1].timestamp
         );
     }
@@ -167,32 +156,29 @@ contract MicrobatchToken is ERC721Full, Ownable {
     */
     function setTokenAsset(
         uint256 tokenId,
-        uint256 facilityId,
-        string memory assetState,
-        string memory assetProcess,
-        string memory assetUOM,
-        uint256 assetQuantity
+        uint256 businessLocationId,
+        string memory bizStep,
+        string memory uom,
+        uint256 quantity
     ) public {
-        (, , , bool assetCommission, ) = facility.get(facilityId);
+        (, , , bool assetCommission, ) = businessLocation.get(businessLocationId);
         require(
             assetCommission == true,
             "Assets can only be created at facilities that produce/commission raw assets"
         );
         tokenAssets[tokenId] = Asset(
-            facilityId,
-            assetState,
-            assetProcess,
-            assetUOM,
-            assetQuantity
+            businessLocationId,
+            bizStep,
+            uom,
+            quantity
         );
-        emit TokenAssetEvent(
+        emit TokenAssetAssociationEvent(
             ownerOf(tokenId),
             tokenId,
-            facilityId,
-            assetState,
-            assetProcess,
-            assetUOM,
-            assetQuantity
+            businessLocationId,
+            bizStep,
+            uom,
+            quantity
         );
     }
 
@@ -204,17 +190,15 @@ contract MicrobatchToken is ERC721Full, Ownable {
             uint256,
             string memory,
             string memory,
-            string memory,
             uint256
         )
     {
         return (
             tokenId,
-            tokenAssets[tokenId].facilityId,
-            tokenAssets[tokenId].assetState,
-            tokenAssets[tokenId].assetProcess,
-            tokenAssets[tokenId].assetUOM,
-            tokenAssets[tokenId].assetQuantity
+            tokenAssets[tokenId].businessLocationId,
+            tokenAssets[tokenId].bizStep,
+            tokenAssets[tokenId].uom,
+            tokenAssets[tokenId].quantity
         );
     }
 }

@@ -1,6 +1,6 @@
 
-const Facility = artifacts.require("Facility");
+const BusinessLocation = artifacts.require("BusinessLocation");
 
 module.exports = function(deployer) {
-  deployer.deploy(Facility);
+  deployer.deploy(BusinessLocation);
 };

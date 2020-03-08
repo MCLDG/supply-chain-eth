@@ -1,50 +1,50 @@
 const MicrobatchToken = artifacts.require("./MicrobatchToken.sol");
-const Facility = artifacts.require("./Facility.sol");
+const BusinessLocation = artifacts.require("./BusinessLocation.sol");
 const { BN, constants, balance, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 
 contract('MicrobatchToken', (accounts) => {
   let microbatchToken;
-  let facility;
+  let businessLocation;
   const firstTokenId = 1;
   const secondTokenId = 2;
-  const glnFacility1 = 123; // as used in Facility.js, represents the farm
-  const glnFacility2 = 456; // as used in Facility.js, represents the co-op
+  const glnBusinessLocation1 = 123; // as used in BusinessLocation.js, represents the farm
+  const glnBusinessLocation2 = 456; // as used in BusinessLocation.js, represents the co-op
 
   before(async () => {
     microbatchToken = await MicrobatchToken.deployed()
-    facility = await Facility.deployed()
+    businessLocation = await BusinessLocation.deployed()
     console.log("ACCOUNTS")
     console.log(accounts)
   })
 
-  describe('deployment-facility', async () => {
-    it('facility deploys and initialises successfully', async () => {
-      const address = await facility.address
+  describe('deployment-businessLocation', async () => {
+    it('businessLocation deploys and initialises successfully', async () => {
+      const address = await businessLocation.address
       assert.notEqual(address, 0x0)
       assert.notEqual(address, '')
       assert.notEqual(address, null)
       assert.notEqual(address, undefined)
     })
 
-    it('can add a new facility', async () => {
-      const receipt = await facility.createFacility(glnFacility1, "Pacamara Farm", "Organic coffee farm producing pacamara coffee beans", "active", true, "1504 Stone Ave, Gold Coast");
-      expectEvent(receipt, 'FacilityEvent', {
-        gln: new BN(glnFacility1)
+    it('can add a new businessLocation', async () => {
+      const receipt = await businessLocation.createBusinessLocation(glnBusinessLocation1, "Pacamara Farm", "Organic coffee farm producing pacamara coffee beans", true, true, "1504 Stone Ave, Gold Coast");
+      expectEvent(receipt, 'BusinessLocationEvent', {
+        gln: new BN(glnBusinessLocation1)
       });
     })
 
-    it('can add a second facility', async () => {
-      const receipt = await facility.createFacility(glnFacility2, "Charlie Co-op", "Organic co-op for washing and drying coffee beans", "active", false, "Unit A, Portland Mountain Road, Gold Coast");
-      expectEvent(receipt, 'FacilityEvent', {
-        gln: new BN(glnFacility2)
+    it('can add a second businessLocation', async () => {
+      const receipt = await businessLocation.createBusinessLocation(glnBusinessLocation2, "Charlie Co-op", "Organic co-op for washing and drying coffee beans", true, false, "Unit A, Portland Mountain Road, Gold Coast");
+      expectEvent(receipt, 'BusinessLocationEvent', {
+        gln: new BN(glnBusinessLocation2)
       });
     })
 
-    it('can query a facility that was previously added', async () => {
-      const facilityDetail = await facility.get(glnFacility2);
-      assert.equal(facilityDetail.facilityName, "Charlie Co-op")
-      assert.equal(facilityDetail.facilityStatus, "active")
-      assert.equal(facilityDetail.assetCommission, false)
+    it('can query a businessLocation that was previously added', async () => {
+      const businessLocationDetail = await businessLocation.get(glnBusinessLocation2);
+      assert.equal(businessLocationDetail.businessLocationName, "Charlie Co-op")
+      assert.equal(businessLocationDetail.businessLocationStatus, true)
+      assert.equal(businessLocationDetail.assetCommission, false)
     })
   })
 
@@ -65,26 +65,21 @@ contract('MicrobatchToken', (accounts) => {
 
     it('can set the address of the Facilties smart contract', async () => {
       try {
-        await microbatchToken.setFacilityAddress(facility.address);
+        await microbatchToken.setBusinessLocationAddress(businessLocation.address);
       } catch (error) {
-        assert.throws(() => { throw new Error(error) }, Error, "Facility address must contain a valid value when calling setFacilityAddress");
+        assert.throws(() => { throw new Error(error) }, Error, "BusinessLocation address must contain a valid value when calling setBusinessLocationAddress");
       }
     })
 
-    it('can query a facility added during testing of the Facilties smart contract', async () => {
-      const facilityDetail = await facility.get(glnFacility2);
-      assert.equal(facilityDetail.facilityName, "Charlie Co-op")
-      assert.equal(facilityDetail.facilityStatus, "active")
-      assert.equal(facilityDetail.assetCommission, false)
+    it('can query a businessLocation added during testing of the Facilties smart contract', async () => {
+      const businessLocationDetail = await businessLocation.get(glnBusinessLocation2);
+      assert.equal(businessLocationDetail.businessLocationName, "Charlie Co-op")
+      assert.equal(businessLocationDetail.businessLocationStatus, true)
+      assert.equal(businessLocationDetail.assetCommission, false)
     })
 
     it('can mint a new token', async () => {
       const receipt = await microbatchToken._mint(accounts[0]);
-      // events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
-      // const event = events[0]
-      // assert.equal(event.returnValues.from, "0x0000000000000000000000000000000000000000")
-      // assert.equal(event.returnValues.to, accounts[0])
-      // assert.equal(event.returnValues.tokenId, firstTokenId)
       expectEvent(receipt, 'Transfer', {
         from: "0x0000000000000000000000000000000000000000", to: accounts[0], tokenId: new BN(firstTokenId)
       });
@@ -95,14 +90,9 @@ contract('MicrobatchToken', (accounts) => {
     })
 
     it('can associate an asset with the token', async () => {
-      const receipt = await microbatchToken.setTokenAsset(firstTokenId, glnFacility1, "raw", "harvested", "kg", 500)
-      // events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
-      // const event = events[0]
-      // assert.equal(event.returnValues.tokenOwner, )
-      // assert.equal(event.returnValues.tokenId, firstTokenId)
-      // assert.equal(event.returnValues.assetQuantity, 500)
-      expectEvent(receipt, 'TokenAssetEvent', {
-        tokenOwner: accounts[0], tokenId: new BN(firstTokenId), assetQuantity: new BN(500)
+      const receipt = await microbatchToken.setTokenAsset(firstTokenId, glnBusinessLocation1, "raw", "harvested", "kg", 500)
+      expectEvent(receipt, 'TokenAssetAssociationEvent', {
+        tokenOwner: accounts[0], tokenId: new BN(firstTokenId), quantity: new BN(500)
       });
     })
 
@@ -154,11 +144,6 @@ contract('MicrobatchToken', (accounts) => {
 
     it('can transfer token from one account to another using an approved account, i.e. transfer caller is not the token holder', async () => {
       const receipt = await microbatchToken.safeTransferFrom(accounts[1], accounts[2], 1, { from: accounts[2] });
-      // events = await microbatchToken.getPastEvents('Transfer', { toBlock: 'latest' })
-      // const event = events[0]
-      // assert.equal(event.returnValues.from, accounts[1])
-      // assert.equal(event.returnValues.to, accounts[2])
-      // assert.equal(event.returnValues.tokenId, firstTokenId)
       expectEvent(receipt, 'Transfer', {
         from: accounts[1], to: accounts[2], tokenId: new BN(firstTokenId)
       });    
@@ -179,56 +164,64 @@ contract('MicrobatchToken', (accounts) => {
     })
 
     it('can associate an asset with the second token', async () => {
-      const receipt = await microbatchToken.setTokenAsset(secondTokenId, glnFacility1,"raw", "harvested", "kg", 490)
-      // events = await microbatchToken.getPastEvents('TokenAssetEvent', { toBlock: 'latest' })
-      // const event = events[0]
-      // assert.equal(event.returnValues.tokenOwner, accounts[0])
-      // assert.equal(event.returnValues.tokenId, secondTokenId)
-      // assert.equal(event.returnValues.facilityId, glnFacility1)
-      // assert.equal(event.returnValues.assetProcess, "harvested")
-      // assert.equal(event.returnValues.assetQuantity, 490)
-      expectEvent(receipt, 'TokenAssetEvent', {
-        tokenOwner: accounts[0], tokenId: new BN(secondTokenId), facilityId: new BN(glnFacility1), assetProcess: "harvested", assetQuantity: new BN(490)
+      const receipt = await microbatchToken.setTokenAsset(secondTokenId, glnBusinessLocation1,"raw", "harvested", "kg", 490)
+      expectEvent(receipt, 'TokenAssetAssociationEvent', {
+        tokenOwner: accounts[0], tokenId: new BN(secondTokenId), businessLocationId: new BN(glnBusinessLocation1), bizStep: "harvested", quantity: new BN(490)
       });    
     })
 
     it('each token is associated with a different asset', async () => {
       let asset = await microbatchToken.getTokenAsset(firstTokenId)
       assert.equal(asset[0], firstTokenId)
-      assert.equal(asset[1], glnFacility1)
+      assert.equal(asset[1], glnBusinessLocation1)
       assert.equal(asset[3], "harvested")
       assert.equal(asset[5], 500)
 
       asset = await microbatchToken.getTokenAsset(secondTokenId)
       assert.equal(asset[0], secondTokenId)
-      assert.equal(asset[1], glnFacility1)
+      assert.equal(asset[1], glnBusinessLocation1)
       assert.equal(asset[3], "harvested")
       assert.equal(asset[5], 490)
     })
 
     // A co-op does not produce assets. It takes as input an asset, raw beans, and transforms it to washed and dried beans
-    // It can therefore not be used as a facility that creates new assets
-    it('cannot associate an asset created in a facility that does not produce assets', async () => {
+    // It can therefore not be used as a businessLocation that creates new assets
+    it('cannot associate an asset created in a businessLocation that does not produce assets', async () => {
       try {
-        await microbatchToken.setTokenAsset(secondTokenId, glnFacility2, "raw", "drying", "kg", 500)
+        await microbatchToken.setTokenAsset(secondTokenId, glnBusinessLocation2, "raw", "drying", "kg", 500)
       } catch (error) {
         assert.throws(() => { throw new Error(error) }, Error, "Assets can only be created at facilities that produce/commission raw assets");
       }
     })
 
     // Transform an asset, i.e. from raw coffee beans to dried beans
-    it('can transform an asset', async () => {
+    it('cannot transform an asset', async () => {
       try {
-        await microbatchToken.transformTokenAsset(secondTokenId, glnFacility2, "raw", "drying", "kg", 450)
+        await microbatchToken.transformAsset(secondTokenId, glnBusinessLocation2, "raw", "drying", "kg", 450)
       } catch (error) {
         assert.throws(() => { throw new Error(error) }, Error, "Assets can only be created at facilities that produce/commission raw assets");
       }
+      expectEvent(receipt, 'TokenAssetAssociationEvent', {
+        tokenOwner: accounts[0], tokenId: new BN(secondTokenId), businessLocationId: new BN(glnBusinessLocation1), bizStep: "harvested", quantity: new BN(490)
+      });    
+    })
+
+    // Transform an asset, i.e. from raw coffee beans to dried beans
+    it('can transform an asset', async () => {
+      try {
+        await microbatchToken.transformAsset(secondTokenId, glnBusinessLocation2, "raw", "drying", "kg", 450)
+      } catch (error) {
+        assert.throws(() => { throw new Error(error) }, Error, "Assets can only be created at facilities that produce/commission raw assets");
+      }
+      expectEvent(receipt, 'TokenAssetAssociationEvent', {
+        tokenOwner: accounts[0], tokenId: new BN(secondTokenId), businessLocationId: new BN(glnBusinessLocation1), bizStep: "harvested", quantity: new BN(490)
+      });    
     })
 
     it('can get the transform history of an asset', async () => {
         const history = await microbatchToken.getTransformHistory(secondTokenId)
         assert.equal(history[0], secondTokenId)
-        assert.equal(history[1], glnFacility1)
+        assert.equal(history[1], glnBusinessLocation1)
         assert.equal(history[3], "harvested")
         assert.equal(history[4], 490)
       })
