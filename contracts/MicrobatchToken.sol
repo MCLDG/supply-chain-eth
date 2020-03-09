@@ -2,35 +2,24 @@ pragma solidity ^0.5.14;
 
 import "../node_modules/openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
 import "../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./BusinessLocation.sol";
+import "./BizLocation.sol";
 
 contract MicrobatchToken is ERC721Full, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private tokenIds;
 
-    BusinessLocation businessLocation;
-
-    // emitted when an asset is associated with the token
-    event TokenAssetAssociationEvent(
-        address tokenOwner,
-        uint256 tokenId,
-        uint256 businessLocationId,
-        string bizStep,
-        string uom,
-        uint256 quantity
-    );
+    BizLocation bizLocation;
 
     // emitted when an event occurs against an asset, for e.g. a TRANSFORM event from coffee beans to ground coffee
     // these events are based on EPCIS events, such as TRANSFORM, OBSERVE, COMMISSION, etc.
     event TokenAssetEvent(
         address tokenOwner,
         uint256 tokenId,
-        string action, // EPCIS event, such as OBSERVE, TRANSFORM
+        string action, // EPCIS event, such as OBSERVE, TRANSFORM, COMMISSION
         string bizStep, // the event, such as SHIPPED
-        uint256 bizLocation,
+        uint256 bizLocationId,
         uint256 inputQuantity,
-        uint256 outputQuantity,
-        uint eventTime
+        uint256 outputQuantity
     );
 
     // The ERC721 standard recommends storing token metadata off-chain, in storage such as IPFS or similar, and
@@ -39,14 +28,11 @@ contract MicrobatchToken is ERC721Full, Ownable {
 
     // The current state of the asset is captured in this struct, and the associated mapping below
     struct Asset {
-        uint256 businessLocationId; // businessLocation currently housing the asset
+        uint256 bizLocationId; // bizLocation currently housing the asset
         string bizStep; // step asset is currently in, such as wash, dry, roast
         string uom; //unit of measure, such as KG
         uint256 quantity; // measured in terms of UOM, e.g. 500kg
     }
-
-    // Mapping from token ID to asset represented by the token
-    mapping(uint256 => Asset) private tokenAssets;
 
     // Coffee is transformed as it progresses through the supply chain, from raw beans, to washed, to dried, to roasted, etc.
     // the production line processing is captured in this struct, and the associated mapping below
@@ -69,58 +55,113 @@ contract MicrobatchToken is ERC721Full, Ownable {
         _mint(to, newItemId);
     }
 
-    function setBusinessLocationAddress(BusinessLocation businessLocationAddress) public {
+    // Can this be removed?
+    // Location applies to the facilities, not the asset itself
+    function setBizLocationAddress(BizLocation bizLocationAddress) public {
         require(
-            address(uint160(address(businessLocationAddress))) > address(0),
-            "BusinessLocation address must contain a valid value"
+            address(uint160(address(bizLocationAddress))) > address(0),
+            "BizLocation address must contain a valid value"
         );
-        businessLocation = businessLocationAddress;
+        bizLocation = bizLocationAddress;
+    }
+
+    /** New assets can only be commissioned (created) at facilities that are producers of the raw asset
+        e.g. a farm produces a crop which is an asset. Washing and drying beans is a transformation
+        activity on the asset and does not result in the ecreation of a new asset. It is simply a
+        step in the supply chain and is represented in the contract as an AssetTransformation.
+
+        The commissioned asset will be stored as the first asset in the array, tokenAssetTransformations
+    */
+    function commissionAsset(
+        uint256 tokenId,
+        uint256 bizLocationId,
+        string memory bizStep,
+        string memory uom,
+        uint256 quantity
+    ) public {
+        (, , , bool assetCommission, ) = bizLocation.get(bizLocationId);
+        require(
+            assetCommission == true,
+            "Assets can only be created at facilities that produce/commission raw assets"
+        );
+        require(
+            this.getNumberTransformsForTokenAsset(tokenId) < 1,
+            "This tokenId contains a commissioned asset. Assets can be commissioned once"
+        );
+        Asset memory asset = Asset(
+            bizLocationId,
+            bizStep,
+            uom,
+            quantity
+        );
+        // push the commissioned asset as the first element in the transform array
+        AssetTransformation[] storage transformArray = tokenAssetTransformations[tokenId];
+        AssetTransformation memory transform = AssetTransformation(
+            block.timestamp,
+            asset
+        );
+        // update the current state of the asset to the post-transformation state
+        transformArray.push(transform);
+        emit TokenAssetEvent(
+            ownerOf(tokenId),
+            tokenId,
+            "COMMISSION",
+            bizStep,
+            bizLocationId,
+            quantity,
+            quantity
+        );
     }
 
     /**
     An asset is transformed when it changes from one form to another, for example, from dried coffee beans to ground coffee.
-    The transformation is captured for a particular token as follows:
-        - the pre-transformation state of the asset is pushed to the end of the AssetTransformation array
-        - the post-transformation state of the asset is updated in tokenAssets
+    The transformation is captured for a particular token by pushing the post-transformation state of the asset
+    to the end of the AssetTransformation array. The pre-transformation state of the asset already exists in the
+    AssetTransformation array. It was pushed there either by the commissionAsset function, or a previous transformAsset.
     */
     function transformAsset(
         uint256 tokenId,
-        uint256 businessLocationId,
-        uint256 inputQuantity,
-        uint256 outputQuantity,
+        uint256 bizLocationId,
         string memory bizStep,
-        string memory uom
+        string memory uom,
+        uint256 inputQuantity,
+        uint256 outputQuantity
     ) public {
-        Asset storage postTransformAsset = tokenAssets[tokenId];
-        // store the pre-transformation state of the asset
-        Asset memory preTransformAsset = Asset(
-            postTransformAsset.businessLocationId,
-            postTransformAsset.bizStep,
-            postTransformAsset.uom,
-            postTransformAsset.quantity
+        Asset memory asset = Asset(
+            bizLocationId,
+            bizStep,
+            uom,
+            outputQuantity
         );
         // push the pre-transformation state of the asset to the transform array
         AssetTransformation[] storage transformArray = tokenAssetTransformations[tokenId];
         AssetTransformation memory transform = AssetTransformation(
             block.timestamp,
-            preTransformAsset
+            asset
         );
         // update the current state of the asset to the post-transformation state
-        uint numberOfTransforms = transformArray.push(transform);
-        postTransformAsset.businessLocationId = businessLocationId;
-        postTransformAsset.bizStep = bizStep;
-        postTransformAsset.uom = uom;
-        postTransformAsset.quantity = outputQuantity;
+        transformArray.push(transform);
         emit TokenAssetEvent(
             ownerOf(tokenId),
             tokenId,
             "TRANSFORM",
             bizStep,
-            businessLocationId,
+            bizLocationId,
             inputQuantity,
-            outputQuantity,
-            block.timestamp
+            outputQuantity
         );
+    }
+
+    function getNumberTransformsForTokenAsset(uint256 tokenId)
+        public
+        view
+        returns (
+            uint256
+        )
+    {
+        AssetTransformation[] memory transformArray = tokenAssetTransformations[tokenId];
+        uint numberOfTransforms = transformArray.length;
+        return (numberOfTransforms);
     }
 
     /**
@@ -133,59 +174,25 @@ contract MicrobatchToken is ERC721Full, Ownable {
         returns (
             uint256,
             uint256,
-            string memory,
             uint256,
+            string memory,
+            string memory,
             uint256
         )
     {
         AssetTransformation[] memory transformArray = tokenAssetTransformations[tokenId];
         uint numberOfTransforms = transformArray.length;
-        return (
-            tokenId,
-            transformArray[numberOfTransforms - 1].asset.businessLocationId,
-            transformArray[numberOfTransforms - 1].asset.bizStep,
-            transformArray[numberOfTransforms - 1].asset.quantity,
-            transformArray[numberOfTransforms - 1].timestamp
-        );
+        return (this.getAssetByIndex(tokenId, numberOfTransforms - 1));
     }
 
-    /** New assets can only be created by facilities that are producers of the raw asset
-        e.g. a farm produces a crop which is an asset. Washing and drying beans is a transformation
-        activity on the asset and does not result in the ecreation of a new asset. It is simply a
-        step in the supply chain and is represented in the contract as an AssetTransformation
-    */
-    function setTokenAsset(
-        uint256 tokenId,
-        uint256 businessLocationId,
-        string memory bizStep,
-        string memory uom,
-        uint256 quantity
-    ) public {
-        (, , , bool assetCommission, ) = businessLocation.get(businessLocationId);
-        require(
-            assetCommission == true,
-            "Assets can only be created at facilities that produce/commission raw assets"
-        );
-        tokenAssets[tokenId] = Asset(
-            businessLocationId,
-            bizStep,
-            uom,
-            quantity
-        );
-        emit TokenAssetAssociationEvent(
-            ownerOf(tokenId),
-            tokenId,
-            businessLocationId,
-            bizStep,
-            uom,
-            quantity
-        );
-    }
-
-    function getTokenAsset(uint256 tokenId)
+    /**
+    Returns the commissioned asset
+     */
+    function getCommissionedAsset(uint256 tokenId)
         public
         view
         returns (
+            uint256,
             uint256,
             uint256,
             string memory,
@@ -193,12 +200,38 @@ contract MicrobatchToken is ERC721Full, Ownable {
             uint256
         )
     {
+        return (this.getAssetByIndex(tokenId, 0));
+    }
+
+    /**
+    Returns an asset by index for a token
+     */
+    function getAssetByIndex(uint256 tokenId, uint256 index)
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            string memory,
+            string memory,
+            uint256
+        )
+    {
+        AssetTransformation[] memory transformArray = tokenAssetTransformations[tokenId];
+        uint numberOfTransforms = transformArray.length;
+        require(
+            numberOfTransforms > 0,
+            "No assets exist for this token"
+        );
         return (
             tokenId,
-            tokenAssets[tokenId].businessLocationId,
-            tokenAssets[tokenId].bizStep,
-            tokenAssets[tokenId].uom,
-            tokenAssets[tokenId].quantity
+            transformArray[index].timestamp,
+            transformArray[index].asset.bizLocationId,
+            transformArray[index].asset.bizStep,
+            transformArray[index].asset.uom,
+            transformArray[index].asset.quantity
         );
     }
+
 }
