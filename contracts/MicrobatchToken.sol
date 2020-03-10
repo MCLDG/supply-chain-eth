@@ -35,14 +35,16 @@ contract MicrobatchToken is ERC721Full, Ownable {
     }
 
     // Coffee is transformed as it progresses through the supply chain, from raw beans, to washed, to dried, to roasted, etc.
-    // the production line processing is captured in this struct, and the associated mapping below
-    struct AssetTransformation {
-        uint256 timestamp; // when the transformation took place
-        Asset asset; // the asset prior to the transformation
+    // Events that occur during production line processing are captured in this struct, and the associated mapping below.
+    // This includes EPCIS events, such as commission, transform, observe
+    struct AssetEvent {
+        uint256 timestamp; // when the event took place
+        string assetSupplementaryInfo; // additional info captured by the event, such as sensor data during an OBSERVE event
+        Asset asset; // the asset state at the time of the event
     }
 
-    // Mapping from token ID to the array of transformations the asset has undergone since being commissioned
-    mapping(uint256 => AssetTransformation[]) private tokenAssetTransformations;
+    // Mapping from token ID to the array of asset events
+    mapping(uint256 => AssetEvent[]) private tokenAssetEvents;
 
     constructor() public ERC721Full("MICROBATCH", "MBAT") {}
 
@@ -55,8 +57,7 @@ contract MicrobatchToken is ERC721Full, Ownable {
         _mint(to, newItemId);
     }
 
-    // Can this be removed?
-    // Location applies to the facilities, not the asset itself
+    // Set the address of the BizLocation contract so it can be called from this contract
     function setBizLocationAddress(BizLocation bizLocationAddress) public {
         require(
             address(uint160(address(bizLocationAddress))) > address(0),
@@ -68,9 +69,9 @@ contract MicrobatchToken is ERC721Full, Ownable {
     /** New assets can only be commissioned (created) at facilities that are producers of the raw asset
         e.g. a farm produces a crop which is an asset. Washing and drying beans is a transformation
         activity on the asset and does not result in the ecreation of a new asset. It is simply a
-        step in the supply chain and is represented in the contract as an AssetTransformation.
+        step in the supply chain and is represented in the contract as an AssetEvent.
 
-        The commissioned asset will be stored as the first asset in the array, tokenAssetTransformations
+        The commissioned asset will be stored as the first asset in the array, tokenAssetEvents
     */
     function commissionAsset(
         uint256 tokenId,
@@ -85,23 +86,15 @@ contract MicrobatchToken is ERC721Full, Ownable {
             "Assets can only be created at facilities that produce/commission raw assets"
         );
         require(
-            this.getNumberTransformsForTokenAsset(tokenId) < 1,
+            this.getNumberEventsForTokenAsset(tokenId) < 1,
             "This tokenId contains a commissioned asset. Assets can be commissioned once"
         );
-        Asset memory asset = Asset(
-            bizLocationId,
-            bizStep,
-            uom,
-            quantity
-        );
+        Asset memory asset = Asset(bizLocationId, bizStep, uom, quantity);
         // push the commissioned asset as the first element in the transform array
-        AssetTransformation[] storage transformArray = tokenAssetTransformations[tokenId];
-        AssetTransformation memory transform = AssetTransformation(
-            block.timestamp,
-            asset
-        );
-        // update the current state of the asset to the post-transformation state
-        transformArray.push(transform);
+        AssetEvent[] storage eventArray = tokenAssetEvents[tokenId];
+        AssetEvent memory assetEvent = AssetEvent(block.timestamp, "", asset);
+        eventArray.push(assetEvent);
+        // emit the event
         emit TokenAssetEvent(
             ownerOf(tokenId),
             tokenId,
@@ -116,8 +109,8 @@ contract MicrobatchToken is ERC721Full, Ownable {
     /**
     An asset is transformed when it changes from one form to another, for example, from dried coffee beans to ground coffee.
     The transformation is captured for a particular token by pushing the post-transformation state of the asset
-    to the end of the AssetTransformation array. The pre-transformation state of the asset already exists in the
-    AssetTransformation array. It was pushed there either by the commissionAsset function, or a previous transformAsset.
+    to the end of the AssetEvent array. The pre-transformation state of the asset already exists in the
+    AssetEvent array. It was pushed there either by the commissionAsset function, or a previous transformAsset.
     */
     function transformAsset(
         uint256 tokenId,
@@ -127,20 +120,12 @@ contract MicrobatchToken is ERC721Full, Ownable {
         uint256 inputQuantity,
         uint256 outputQuantity
     ) public {
-        Asset memory asset = Asset(
-            bizLocationId,
-            bizStep,
-            uom,
-            outputQuantity
-        );
-        // push the pre-transformation state of the asset to the transform array
-        AssetTransformation[] storage transformArray = tokenAssetTransformations[tokenId];
-        AssetTransformation memory transform = AssetTransformation(
-            block.timestamp,
-            asset
-        );
-        // update the current state of the asset to the post-transformation state
-        transformArray.push(transform);
+        Asset memory asset = Asset(bizLocationId, bizStep, uom, outputQuantity);
+        // push the post-transformation state of the asset to the transform array
+        AssetEvent[] storage eventArray = tokenAssetEvents[tokenId];
+        AssetEvent memory assetEvent = AssetEvent(block.timestamp, "", asset);
+        eventArray.push(assetEvent);
+        // emit the event
         emit TokenAssetEvent(
             ownerOf(tokenId),
             tokenId,
@@ -152,37 +137,78 @@ contract MicrobatchToken is ERC721Full, Ownable {
         );
     }
 
-    function getNumberTransformsForTokenAsset(uint256 tokenId)
+    /**
+    Observe an asset. Assets are observed  transformed when it changes from one form to another, for example, from dried coffee beans to ground coffee.
+    The transformation is captured for a particular token by pushing the post-transformation state of the asset
+    to the end of the AssetEvent array. The pre-transformation state of the asset already exists in the
+    AssetEvent array. It was pushed there either by the commissionAsset function, or a previous transformAsset.
+    */
+    function observeAsset(
+        uint256 tokenId,
+        uint256 bizLocationId,
+        string memory bizStep,
+        string memory uom,
+        uint256 quantity,
+        string memory assetSupplementaryInfo
+    ) public {
+        Asset memory asset = Asset(bizLocationId, bizStep, uom, quantity);
+        // push the observed state of the asset to the transform array
+        AssetEvent[] storage eventArray = tokenAssetEvents[tokenId];
+        AssetEvent memory assetEvent = AssetEvent(
+            block.timestamp,
+            assetSupplementaryInfo,
+            asset
+        );
+        eventArray.push(assetEvent);
+        // emit the event
+        emit TokenAssetEvent(
+            ownerOf(tokenId),
+            tokenId,
+            "OBSERVE",
+            bizStep,
+            bizLocationId,
+            quantity,
+            quantity
+        );
+    }
+
+    /**
+    Getters
+    */
+
+    /**
+    Return the number of events that have occurred against an asset (i.e. commission, transform, observe, etc.)
+    */
+    function getNumberEventsForTokenAsset(uint256 tokenId)
         public
         view
-        returns (
-            uint256
-        )
+        returns (uint256)
     {
-        AssetTransformation[] memory transformArray = tokenAssetTransformations[tokenId];
-        uint numberOfTransforms = transformArray.length;
-        return (numberOfTransforms);
+        AssetEvent[] memory eventArray = tokenAssetEvents[tokenId];
+        uint256 numberOfEvents = eventArray.length;
+        return (numberOfEvents);
     }
 
     /**
     This function isn't particularly useful. It returns the asset state prior to the current state.
     Ideally it should return an array of transforms, but returning dynamic arrays is an experimental feature only
      */
-    function getTransformHistory(uint256 tokenId)
+    function getEventHistory(uint256 tokenId)
         public
         view
         returns (
             uint256,
             uint256,
+            string memory,
             uint256,
             string memory,
             string memory,
             uint256
         )
     {
-        AssetTransformation[] memory transformArray = tokenAssetTransformations[tokenId];
-        uint numberOfTransforms = transformArray.length;
-        return (this.getAssetByIndex(tokenId, numberOfTransforms - 1));
+        AssetEvent[] memory eventArray = tokenAssetEvents[tokenId];
+        uint256 numberOfEvents = eventArray.length;
+        return (this.getAssetEventByIndex(tokenId, numberOfEvents - 1));
     }
 
     /**
@@ -194,43 +220,43 @@ contract MicrobatchToken is ERC721Full, Ownable {
         returns (
             uint256,
             uint256,
+            string memory,
             uint256,
             string memory,
             string memory,
             uint256
         )
     {
-        return (this.getAssetByIndex(tokenId, 0));
+        return (this.getAssetEventByIndex(tokenId, 0));
     }
 
     /**
-    Returns an asset by index for a token
+    Returns an asset event by index for a token
      */
-    function getAssetByIndex(uint256 tokenId, uint256 index)
+    function getAssetEventByIndex(uint256 tokenId, uint256 index)
         public
         view
         returns (
             uint256,
             uint256,
+            string memory,
             uint256,
             string memory,
             string memory,
             uint256
         )
     {
-        AssetTransformation[] memory transformArray = tokenAssetTransformations[tokenId];
-        uint numberOfTransforms = transformArray.length;
-        require(
-            numberOfTransforms > 0,
-            "No assets exist for this token"
-        );
+        AssetEvent[] memory eventArray = tokenAssetEvents[tokenId];
+        uint256 numberOfEvents = eventArray.length;
+        require(numberOfEvents > 0, "No assets exist for this token");
         return (
             tokenId,
-            transformArray[index].timestamp,
-            transformArray[index].asset.bizLocationId,
-            transformArray[index].asset.bizStep,
-            transformArray[index].asset.uom,
-            transformArray[index].asset.quantity
+            eventArray[index].timestamp,
+            eventArray[index].assetSupplementaryInfo,
+            eventArray[index].asset.bizLocationId,
+            eventArray[index].asset.bizStep,
+            eventArray[index].asset.uom,
+            eventArray[index].asset.quantity
         );
     }
 
