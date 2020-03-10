@@ -38,8 +38,7 @@ contract MicrobatchToken is ERC721Full, Ownable {
     // Events that occur during production line processing are captured in this struct, and the associated mapping below.
     // This includes EPCIS events, such as commission, transform, observe
     struct AssetEvent {
-        uint256 timestamp; // when the event took place
-        string assetSupplementaryInfo; // additional info captured by the event, such as sensor data during an OBSERVE event
+        string assetSupplementaryInfo; // additional info captured by the event, such as timestamp, sensor data during an OBSERVE event, etc.
         Asset asset; // the asset state at the time of the event
     }
 
@@ -92,7 +91,7 @@ contract MicrobatchToken is ERC721Full, Ownable {
         Asset memory asset = Asset(bizLocationId, bizStep, uom, quantity);
         // push the commissioned asset as the first element in the transform array
         AssetEvent[] storage eventArray = tokenAssetEvents[tokenId];
-        AssetEvent memory assetEvent = AssetEvent(block.timestamp, "", asset);
+        AssetEvent memory assetEvent = AssetEvent("", asset);
         eventArray.push(assetEvent);
         // emit the event
         emit TokenAssetEvent(
@@ -123,7 +122,7 @@ contract MicrobatchToken is ERC721Full, Ownable {
         Asset memory asset = Asset(bizLocationId, bizStep, uom, outputQuantity);
         // push the post-transformation state of the asset to the transform array
         AssetEvent[] storage eventArray = tokenAssetEvents[tokenId];
-        AssetEvent memory assetEvent = AssetEvent(block.timestamp, "", asset);
+        AssetEvent memory assetEvent = AssetEvent("", asset);
         eventArray.push(assetEvent);
         // emit the event
         emit TokenAssetEvent(
@@ -155,7 +154,7 @@ contract MicrobatchToken is ERC721Full, Ownable {
         // push the observed state of the asset to the transform array
         AssetEvent[] storage eventArray = tokenAssetEvents[tokenId];
         AssetEvent memory assetEvent = AssetEvent(
-            block.timestamp,
+            //block.timestamp,
             assetSupplementaryInfo,
             asset
         );
@@ -198,7 +197,6 @@ contract MicrobatchToken is ERC721Full, Ownable {
         view
         returns (
             uint256,
-            uint256,
             string memory,
             uint256,
             string memory,
@@ -219,7 +217,6 @@ contract MicrobatchToken is ERC721Full, Ownable {
         view
         returns (
             uint256,
-            uint256,
             string memory,
             uint256,
             string memory,
@@ -238,7 +235,6 @@ contract MicrobatchToken is ERC721Full, Ownable {
         view
         returns (
             uint256,
-            uint256,
             string memory,
             uint256,
             string memory,
@@ -251,7 +247,6 @@ contract MicrobatchToken is ERC721Full, Ownable {
         require(numberOfEvents > 0, "No assets exist for this token");
         return (
             tokenId,
-            eventArray[index].timestamp,
             eventArray[index].assetSupplementaryInfo,
             eventArray[index].asset.bizLocationId,
             eventArray[index].asset.bizStep,

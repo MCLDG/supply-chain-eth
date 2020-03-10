@@ -1,6 +1,18 @@
 # Supply Chain on blockchain
 Build a supply chain application on Ethereum
 
+## Features supported
+The supply chain application supports a number of features:
+
+* Batches of products are managed as ERC721 tokens
+* The lifecycle of the batch is captured in the ERC721 token
+* Facilities where processing takes place (i.e. where an asset is transformed) are captured as BizLocations
+* EPCIS events are applied to the asset, such as COMMISSION, TRANSFORM, OBSERVE. The full EPCIS syntax is not used - only a subset
+* Additional information can be captured against EPCIS events, such as IoT sensor data. This is not yet supported by EPCIS - it is WIP by one of the EPCIS working groups.
+* Documents can be stored publicly on IPFS
+* Documents can be stored privately using Kaleido storage, which uses S3 under the covers
+* Documents can be transferred privately between specific members
+
 ## Getting started
 Deploy Ethereum development dependencies:
 

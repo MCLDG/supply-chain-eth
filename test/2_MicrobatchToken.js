@@ -171,15 +171,15 @@ contract('MicrobatchToken', (accounts) => {
     it('each token is associated with a different asset', async () => {
       let asset = await microbatchToken.getCommissionedAsset(firstTokenId)
       assert.equal(asset[0], firstTokenId)
-      assert.equal(asset[3], glnBizLocation1)
-      assert.equal(asset[4], "harvested")
-      assert.equal(asset[6], 500)
+      assert.equal(asset[2], glnBizLocation1)
+      assert.equal(asset[3], "harvested")
+      assert.equal(asset[5], 500)
 
       asset = await microbatchToken.getCommissionedAsset(secondTokenId)
       assert.equal(asset[0], secondTokenId)
-      assert.equal(asset[3], glnBizLocation1)
-      assert.equal(asset[4], "harvested")
-      assert.equal(asset[6], 490)
+      assert.equal(asset[2], glnBizLocation1)
+      assert.equal(asset[3], "harvested")
+      assert.equal(asset[5], 490)
     })
 
     // A co-op does not produce assets. It takes as input an asset, raw beans, and transforms it to washed and dried beans
@@ -199,9 +199,9 @@ contract('MicrobatchToken', (accounts) => {
     it('can get the event history of an asset', async () => {
       const history = await microbatchToken.getEventHistory(secondTokenId)
       assert.equal(history[0], secondTokenId)
-      assert.equal(history[3], glnBizLocation2)
-      assert.equal(history[4], "drying")
-      assert.equal(history[6], 440)
+      assert.equal(history[2], glnBizLocation2)
+      assert.equal(history[3], "drying")
+      assert.equal(history[5], 440)
     })
 
     it('can observe an asset', async () => {
@@ -228,18 +228,15 @@ contract('MicrobatchToken', (accounts) => {
     })
     
     it('can get events recorded against an asset', async () => {
-      let assetEvent = await microbatchToken.getAssetEventByIndex(secondTokenId, 1)
-      console.log(assetEvent)
+      let assetEvent = await microbatchToken.getAssetEventByIndex(secondTokenId, 0)
       assert.equal(assetEvent[0], secondTokenId)
-      assert.equal(assetEvent[2], "")
-      assert.equal(assetEvent[4], "harvested")
+      assert.equal(assetEvent[1], "")
+      assert.equal(assetEvent[3], "harvested")
 
-      let assetEvent = await microbatchToken.getAssetEventByIndex(secondTokenId, 4)
-      console.log(assetEvent)
+      assetEvent = await microbatchToken.getAssetEventByIndex(secondTokenId, 3)
       assert.equal(assetEvent[0], secondTokenId)
-      assert.equal(assetEvent[2], "")
-      assert.equal(assetEvent[4], "drying")
-
+      assert.equal(assetEvent[1], '{"infoTypeURI": "urn:type:sensor:v2", "sensorType": "temperature", "reading": "25.457", "timestamp": "2020-02-28T14:32:00Z"}')
+      assert.equal(assetEvent[3], "drying")
     })
   })
 })
