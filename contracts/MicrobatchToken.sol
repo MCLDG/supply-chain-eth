@@ -47,10 +47,7 @@ contract MicrobatchToken is ERC721Full, Ownable {
 
     constructor() public ERC721Full("MICROBATCH", "MBAT") {}
 
-    // function mint(address to, uint256 tokenId) public onlyOwner {
-    //     _mint(to, tokenId);
-    // }
-    function _mint(address to) public onlyOwner {
+    function mint(address to) public onlyOwner {
         tokenIds.increment();
         uint256 newItemId = tokenIds.current();
         _mint(to, newItemId);

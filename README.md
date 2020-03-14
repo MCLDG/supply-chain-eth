@@ -16,29 +16,40 @@ The supply chain application supports a number of features:
 ## Getting started
 Deploy Ethereum development dependencies:
 
-Node.js
-Truffle:
-npm install -g truffle
-Ganache (local Ethereum blockchain for testing):
-https://github.com/trufflesuite/ganache/releases
-Select a release and scroll down to download the appropriate binary
+* Node.js v10
+* Truffle 
+* Ganache 
+* Metamask extension for Chrome
+* Solidity syntax highlighting for VSCode.
 
+## Deploying smart contracts
 
-Metamask extension for Chrome:
+You have 4 options when deploying and testing your smart contracts:
 
-I've also added Solidity syntax highlighting to VSCode.
-
-In a new directory for your application, initialise a new truffle project:
+1. Deploy to the test truffle network. This will run a local test Ethereum network:
 
 ```
-truffle init
+truffle develop
 ```
 
-Configure package.json with the appropriate packages, then install them:
+After running this and seeing the accounts listed, you can use `compile, test or migrate` to compile and run your smart contract on this test network.
+
+2. Ganache. On the command line, if you use the standard truffle commands, these will default to migrating to the local Ganache test network. For example, this will deploy to Ganache:
 
 ```
-npm install
+truffle migrate
+truffle test
 ```
+
+3. Kaleido. Your truffle-config.js should contain an entry for `quorum`, and it should point to the RPC endpoint for a specific Kaleido node, for example, FARMER_NODE_URL_RPC. You will also need a set of application credentials, which you generated in the Getting Started with Kaleido section. Execute the following to migrate your smart contract to Kaleido:
+
+```
+truffle migrate --network quorum
+truffle test --network quorum
+```
+
+4. Use the Kaleido smart contract management feature, described below.
+
 ## Getting started with Kaleido
 
 We will use IaC (infra as code) to create all the necessary Kaleido components. All API calls to Kaleido require an API key, which is used as an authorisation token when making API calls. You'll need to access the Kaleido console to generate the API key. Select `Account->API Keys`, and click `+ New API Key`. Store your API key somewhere safe, such as in a password manager. Do NOT store it in any file that could end up in the GitHub repo.
@@ -143,34 +154,6 @@ export FARMER_FULL_URL=https://${FARMER_CREDS_USERNAME}:${FARMER_CREDS_PASSWORD}
 curl --verbose $FARMER_FULL_URL/api/v1/wallets
 ```
 
-## Deploying smart contracts
-
-You have 4 options when deploying and testing your smart contracts:
-
-1. Deploy to the test truffle network. This will run a local test Ethereum network:
-
-```
-truffle develop
-```
-
-After running this and seeing the accounts listed, you can use `compile, test or migrate` to compile and run your smart contract on this test network.
-
-2. Ganache. On the command line, if you use the standard truffle commands, these will default to migrating to the local Ganache test network. For example, this will deploy to Ganache:
-
-```
-truffle migrate
-truffle test
-```
-
-3. Kaleido. Your truffle-config.js should contain an entry for `quorum`, and it should point to the RPC endpoint for a specific Kaleido node, for example, FARMER_NODE_URL_RPC. You will also need a set of application credentials, which you generated in the Getting Started section above. Execute the following to migrate your smart contract to Kaleido:
-
-```
-truffle migrate --network quorum
-truffle test --network quorum
-```
-
-4. Use the Kaleido smart contract management feature, described below.
-
 ## Managing smart contracts in Kaleido
 
 Kaleido supports a smart contract management solution that can manage packaging, tracking and promoting smart contracts through different environments. It does not (yet) support a ci/cd approach, where a change to the source would trigger a build, nor does it support a workflow, where a particular compilation would be promoted in order through DEV, TEST, UAT, PROD. However, it does allow you to trace which transactions were executed against a specific smart contract, and tie these back to the exact commit in Github. Once you have tested a specific compilation of a smart contract in DEV, you could (manually) promote the same version of that smart contract to TEST. Kaleido does hash the smart contract code, so it prevents you from running two identical versions of the same smart contract in the same environment.
@@ -264,7 +247,7 @@ Note that the transfer via the API does not work. I have raised an issue with Ka
 
 ## Representing a micro-batch as an ERC721 token
 
-We'll use the open zepellin library to help us setup the ERC721 token. Either install it or add it to package.json and run 'npm install'.
+We'll use the open zepellin library to help us setup the ERC721 token (https://github.com/OpenZeppelin/openzeppelin-contracts). Either install it or add it to package.json and run 'npm install'.
 
 ```
 npm install openzeppelin-solidity
