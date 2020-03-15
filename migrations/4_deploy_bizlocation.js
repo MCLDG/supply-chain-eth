@@ -1,6 +1,6 @@
 
-const BizLocation = artifacts.require("BizLocation");
+const BizLocationContract = artifacts.require("BizLocationContract");
 
 module.exports = function(deployer) {
-  deployer.deploy(BizLocation);
+  deployer.deploy(BizLocationContract);
 };

@@ -21,7 +21,7 @@ echo Creating Kaleido COMPILED CONTRACT
 COMPILED_PACKAGE_LABEL_CONTRACT=$(curl --header "$HDR_AUTH" --header "$HDR_CT" --silent --data "{ \
     \"description\": \"Compiled contract for managing the labels affixed to packaging\", \
     \"membership_id\": \"$FARMER_MEMBER_ID\", \
-    \"contract_url\": \"https://github.com/MCLDG/supply-chain-eth/blob/master/contracts/PackageLabels.sol\" \
+    \"contract_url\": \"https://github.com/MCLDG/supply-chain-eth/blob/master/contracts/PackageLabelsContract.sol\" \
  }" "$APIURL/consortia/$CONSORTIUM_ID/contracts/$PACKAGE_LABEL_CONTRACT_ID/compiled_contracts" | jq)
 
 export COMPILED_PACKAGE_LABEL_CONTRACT_ID=$(echo $COMPILED_PACKAGE_LABEL_CONTRACT | jq -r "._id")

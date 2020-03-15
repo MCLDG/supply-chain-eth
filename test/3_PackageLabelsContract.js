@@ -1,11 +1,11 @@
-const PackageLabels = artifacts.require("./PackageLabels.sol");
+const PackageLabelsContract = artifacts.require("./PackageLabelsContract.sol");
 const { BN, constants, balance, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 
-contract('PackageLabels', (accounts) => {
+contract('PackageLabelsContract', (accounts) => {
   let packageLabels;
 
   before(async () => {
-    packageLabels = await PackageLabels.deployed()
+    packageLabels = await PackageLabelsContract.deployed()
   })
 
   describe('deployment', async () => {

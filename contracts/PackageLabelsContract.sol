@@ -1,6 +1,6 @@
 pragma solidity ^0.5.14;
 
-contract PackageLabels {
+contract PackageLabelsContract {
     uint256 public packageLabelCount = 0;
 
     struct PackageLabel {

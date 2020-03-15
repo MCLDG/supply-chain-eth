@@ -1,13 +1,13 @@
-const BizLocation = artifacts.require("./BizLocation.sol");
+const BizLocationContract = artifacts.require("./BizLocationContract.sol");
 const { BN, constants, balance, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 
-contract('BizLocation', (accounts) => {
+contract('BizLocationContract', (accounts) => {
   let bizLocation;
   let glnBizLocation1 = 123;
   let glnBizLocation2 = 456;
 
   before(async () => {
-    bizLocation = await BizLocation.deployed()
+    bizLocation = await BizLocationContract.deployed()
   })
 
   describe('deployment', async () => {
@@ -37,7 +37,7 @@ contract('BizLocation', (accounts) => {
       let bizLocationDetail = await bizLocation.get(glnBizLocation2);
       assert.equal(bizLocationDetail.bizLocationName, "Charlie Co-op")
       assert.equal(bizLocationDetail.bizLocationActive, true)
-      assert.equal(bizLocationDetail.assetCommission, false)
+      assert.equal(bizLocationDetail.tradeItemCommission, false)
     })
   })
 })

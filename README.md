@@ -253,7 +253,7 @@ We'll use the open zepellin library to help us setup the ERC721 token (https://g
 npm install openzeppelin-solidity
 ```
 
-Deploy the MicrobatchToken smart contract.
+Deploy the TradeItemContract smart contract.
 
 Use truffle to test it:
 
@@ -264,7 +264,7 @@ truffle console
 In the console
 
 ```
-let contract = await MicrobatchToken.deployed()
+let contract = await TradeItemContract.deployed()
 contract.address
 contract.totalSupply()
 let accounts = await web3.eth.getAccounts()

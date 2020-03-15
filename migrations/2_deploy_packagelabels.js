@@ -1,6 +1,6 @@
 
-const PackageLabels = artifacts.require("PackageLabels");
+const PackageLabelsContract = artifacts.require("PackageLabelsContract");
 
 module.exports = function(deployer) {
-  deployer.deploy(PackageLabels);
+  deployer.deploy(PackageLabelsContract);
 };
