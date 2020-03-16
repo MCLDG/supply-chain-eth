@@ -4,10 +4,10 @@ Build a supply chain application on Ethereum
 ## Features supported
 The supply chain application supports a number of features:
 
-* Batches of products are managed as ERC721 tokens
+* Batches (Lots) of products are managed as ERC721 tokens
 * The lifecycle of the batch is captured in the ERC721 token
-* Facilities where processing takes place (i.e. where an asset is transformed) are captured as BizLocations
-* EPCIS events are applied to the asset, such as COMMISSION, TRANSFORM, OBSERVE. The full EPCIS syntax is not used - only a subset
+* Facilities (locations) where processing takes place (i.e. where a trade item is transformed) are captured as BizLocations
+* EPCIS events are applied to the trade item, such as COMMISSION, TRANSFORM, OBSERVE. The full EPCIS syntax is not used - only a subset
 * Additional information can be captured against EPCIS events, such as IoT sensor data. This is not yet supported by EPCIS - it is WIP by one of the EPCIS working groups.
 * Documents can be stored publicly on IPFS
 * Documents can be stored privately using Kaleido storage, which uses S3 under the covers
@@ -253,7 +253,7 @@ We'll use the open zepellin library to help us setup the ERC721 token (https://g
 npm install openzeppelin-solidity
 ```
 
-Deploy the TradeItemContract smart contract.
+Deploy the LotContract smart contract.
 
 Use truffle to test it:
 
@@ -264,7 +264,7 @@ truffle console
 In the console
 
 ```
-let contract = await TradeItemContract.deployed()
+let contract = await LotContract.deployed()
 contract.address
 contract.totalSupply()
 let accounts = await web3.eth.getAccounts()

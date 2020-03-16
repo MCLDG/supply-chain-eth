@@ -26,7 +26,7 @@ contract BizLocationContract {
         Address bizLocationAddress;
     }
 
-    mapping(uint256 => bizLocationDetail) facilities;
+    mapping(uint256 => bizLocationDetail) locations;
 
     function createBizLocation(
         uint256 gln,
@@ -38,9 +38,9 @@ contract BizLocationContract {
     ) public {
         require(
             bizLocationActive == true,
-            "Assets can only be created at facilities that commission raw tradeItems"
+            "Assets can only be created at locations that commission raw tradeItems"
         );
-        facilities[gln] = bizLocationDetail(
+        locations[gln] = bizLocationDetail(
             gln,
             bizLocationName,
             bizLocationDescription,
@@ -62,7 +62,7 @@ contract BizLocationContract {
             string memory streetAddressOne
         )
     {
-        bizLocationDetail storage fd = facilities[gln];
+        bizLocationDetail storage fd = locations[gln];
         return (
             fd.bizLocationName,
             fd.bizLocationDescription,
