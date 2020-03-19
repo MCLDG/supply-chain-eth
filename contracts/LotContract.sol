@@ -3,55 +3,22 @@ pragma solidity ^0.5.14;
 import "../node_modules/openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
 import "../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./BizLocationContract.sol";
+import "./LotEventContract.sol";
+import "./CommonLibrary.sol";
 
 /**
  @title Represents a LOT, which is tracked as an ERC721 token
  @author Michael Edge
 */
- contract LotContract is ERC721Full, Ownable {
+contract LotContract is ERC721Full, Ownable {
     // using Counters for Counters.Counter;
     // Counters.Counter private GTINs;
 
     BizLocationContract bizLocation; // holds the address of the BizLocationContract smart contract. Used to obtain location information
+    LotEventContract lotEvent; // holds the address of the LotEventContract smart contract. Used to capture events
 
-    // emitted when an event occurs against a TRADEITEM, for e.g. a TRANSFORM event from coffee beans to ground coffee
-    // these events are based on EPCIS events, such as TRANSFORM, OBSERVE, COMMISSION, etc.
-    event TradeItemEmitEvent(
-        address tokenOwner,
-        uint256 GTIN,
-        string action, // EPCIS event, such as OBSERVE, TRANSFORM, COMMISSION
-        string bizStep, // the EPCIS business step, examples include “commissioning”, “roasting”, “washing”, “inspecting”, “packing”, “picking”, “shipping”, “retail_selling.”
-        uint256 bizLocationGLN,
-        uint256 inputQuantity,
-        uint256 outputQuantity
-    );
-
-    // The ERC721 standard recommends storing token metadata off-chain, in storage such as IPFS or similar, and
-    // using the metadata extension (via a URI) to retrieve this along with the token. Their justification is that
-    // storing on-chain metadata is expensive. For the sake of simplicity I've chosen to store metadata on-chain.
-
-    // The current state of the TRADEITEM is captured in this struct, and the associated mapping below
-    struct TradeItem {
-        uint256 bizLocationGLN; // bizLocation currently housing the TRADEITEM
-        string bizStep; // the EPCIS business step, examples include “commissioning”, “roasting”, “washing”,
-        // “inspecting”, “packing”, “picking”, “shipping”, “retail_selling.”
-        string disposition; // identifies the business condition subsequent to the event, examples include “active”,
-        // “in_progress”, “in_transit”, “expired”, “recalled”, “retail_sold” and “stolen.”
-        string uom; //unit of measure, such as KG. If no UOM is specified, it defaults to quantity
-        uint256 quantity; // measured in terms of UOM, e.g. 500kg
-    }
-
-    // Coffee is transformed as it progresses through the supply chain, from raw beans, to washed, to dried, to roasted, etc.
-    // Events that occur during production line processing are captured in this struct, and the associated mapping below.
-    // This includes EPCIS events, such as commission, transform, observe
-    struct TradeItemEvent {
-        string action; // EPCIS event, such as OBSERVE, TRANSFORM, COMMISSION
-        uint256 eventTimestamp;
-        uint256 sourceBizLocationGLN; // source location, if the event included a transfer from source to destination
-        uint256 destinationBizLocationGLN; // destination location, if the event included a transfer from source to destination
-        string tradeItemSupplementaryInfo; // additional info captured by the event, such as timestamp, sensor data during an OBSERVE event, etc.
-        TradeItem tradeItem; // the TRADEITEM state at the time of the event
-    }
+    // Store the commissioned TRADEITEM
+    CommonLibrary.TradeItem public tradeItem;
 
     // Mapping from the LOT ID to the array of TRADEITEM IDs (GTIN)
     // You can query tradeItemEvents using the GTIN to see details of the TRADEITEM
@@ -65,19 +32,17 @@ import "./BizLocationContract.sol";
     // The reverse of the above map, to discover the LOT that owns a TRADEITEM
     mapping(uint256 => uint256) private lotForTradeItem;
 
-    // Mapping from GTIN (representing the TRADEITEM) to the array of TRADEITEM events.
-    // Current state of the trade item can be obtain from the array
-    mapping(uint256 => TradeItemEvent[]) private tradeItemEvents;
-
     constructor() public ERC721Full("TRADEITEM", "TRDI") {}
 
-    // The ERC721 token is minted with a GTIN, Global Trade Item Number, which uniquely tracks trade items
+    // The ERC721 token is minted with a LOTID, which uniquely tracks LOTS
     function mint(address to, uint256 LOTID) public onlyOwner {
         _mint(to, LOTID);
     }
 
     // Set the address of the BizLocationContract contract so it can be called from this contract
-    function setBizLocationAddress(BizLocationContract bizLocationAddress) public {
+    function setBizLocationAddress(BizLocationContract bizLocationAddress)
+        public
+    {
         require(
             address(uint160(address(bizLocationAddress))) > address(0),
             "BizLocationContract address must contain a valid value"
@@ -85,12 +50,25 @@ import "./BizLocationContract.sol";
         bizLocation = bizLocationAddress;
     }
 
+    // Set the address of the lotEventContract contract so it can be called from this contract
+    function setLotEventContractAddress(
+        LotEventContract lotEventContractAddress
+    ) public {
+        require(
+            address(uint160(address(lotEventContractAddress))) > address(0),
+            "lotEventContract address must contain a valid value"
+        );
+        lotEvent = lotEventContractAddress;
+    }
+
     /** New TRADEITEMS can only be commissioned (created) at locations that are producers of the raw TRADEITEM
         e.g. a farm produces a crop which is a TRADEITEM. Washing and drying beans is a transformation
         activity on the TRADEITEM and does not result in the ecreation of a new TRADEITEM. It is simply a
         step in the supply chain and is represented in the contract as a tradeItemEvent.
 
-        The commissioned TRADEITEM will be stored as the first TRADEITEM in the array, tradeItemEvents
+        The commissioned TRADEITEM will be stored as the first TRADEITEM in the array, tradeItemEvents.
+
+        TRADEITEMS are commissioned with a GTIN, Global Trade Item Number, which uniquely tracks trade items
     */
     function commissionTradeItem(
         uint256 LOTID,
@@ -107,10 +85,10 @@ import "./BizLocationContract.sol";
             "tradeItems can only be created at locations that produce raw tradeItems"
         );
         require(
-            this.getNumberEventsForTradeItem(GTIN) < 1,
+            lotEvent.getNumberEventsForTradeItem(GTIN) < 1,
             "A commissioned TRADEITEM can only be commissioned once"
         );
-        TradeItem memory tradeItem = TradeItem(
+        tradeItem = CommonLibrary.TradeItem(
             bizLocationGLN,
             bizStep,
             disposition,
@@ -122,26 +100,20 @@ import "./BizLocationContract.sol";
         tradeItemArray.push(GTIN);
         // store the LOT this TRADEITEM belongs to
         lotForTradeItem[GTIN] = LOTID;
-        // push the commissioned TRADEITEM event as the first element in the events array
-        TradeItemEvent[] storage eventArray = tradeItemEvents[GTIN];
-        TradeItemEvent memory tradeItemEvent = TradeItemEvent(
-            "COMMISSION",
-            block.timestamp,
-            bizLocationGLN,
-            bizLocationGLN,
-            "",
-            tradeItem
-        );
-        eventArray.push(tradeItemEvent);
-        // emit the event
-        emit TradeItemEmitEvent(
+        // store the commissioned event
+        lotEvent.captureTradeItemEvent(
             ownerOf(LOTID),
+            LOTID,
             GTIN,
             "COMMISSION",
-            bizStep,
             bizLocationGLN,
+            bizLocationGLN,
+            bizStep,
+            disposition,
+            uom,
             quantity,
-            quantity
+            quantity,
+            ""
         );
     }
 
@@ -160,33 +132,20 @@ import "./BizLocationContract.sol";
         uint256 inputQuantity,
         uint256 outputQuantity
     ) public {
-        TradeItem memory tradeItem = TradeItem(
+        // store the transform event
+        lotEvent.captureTradeItemEvent(
+            ownerOf(getLotForTradeItem(GTIN)),
+            getLotForTradeItem(GTIN),
+            GTIN,
+            "TRANSFORM",
+            bizLocationGLN,
             bizLocationGLN,
             bizStep,
             disposition,
             uom,
-            outputQuantity
-        );
-        // push the post-transformation state of the TRADEITEM to the events array
-        TradeItemEvent[] storage eventArray = tradeItemEvents[GTIN];
-        TradeItemEvent memory tradeItemEvent = TradeItemEvent(
-            "TRANSFORM",
-            block.timestamp,
-            bizLocationGLN,
-            bizLocationGLN,
-            "",
-            tradeItem
-        );
-        eventArray.push(tradeItemEvent);
-        // emit the event
-        emit TradeItemEmitEvent(
-            ownerOf(getLotForTradeItem(GTIN)),
-            GTIN,
-            "TRANSFORM",
-            bizStep,
-            bizLocationGLN,
             inputQuantity,
-            outputQuantity
+            outputQuantity,
+            ""
         );
     }
 
@@ -205,33 +164,20 @@ import "./BizLocationContract.sol";
         uint256 quantity,
         string memory tradeItemSupplementaryInfo
     ) public {
-        TradeItem memory tradeItem = TradeItem(
+        // store the observe event
+        lotEvent.captureTradeItemEvent(
+            ownerOf(getLotForTradeItem(GTIN)),
+            getLotForTradeItem(GTIN),
+            GTIN,
+            "TRANSFORM",
+            bizLocationGLN,
             bizLocationGLN,
             bizStep,
             disposition,
             uom,
-            quantity
-        );
-        // push the observed state of the TRADEITEM to the events array
-        TradeItemEvent[] storage eventArray = tradeItemEvents[GTIN];
-        TradeItemEvent memory tradeItemEvent = TradeItemEvent(
-            "OBSERVE",
-            block.timestamp,
-            bizLocationGLN,
-            bizLocationGLN,
-            tradeItemSupplementaryInfo,
-            tradeItem
-        );
-        eventArray.push(tradeItemEvent);
-        // emit the event
-        emit TradeItemEmitEvent(
-            ownerOf(getLotForTradeItem(GTIN)),
-            GTIN,
-            "OBSERVE",
-            bizStep,
-            bizLocationGLN,
             quantity,
-            quantity
+            quantity,
+            tradeItemSupplementaryInfo
         );
     }
 
@@ -244,41 +190,28 @@ import "./BizLocationContract.sol";
     */
     function transportTradeItem(
         uint256 GTIN,
-        uint256 bizLocationGLNFrom,
-        uint256 bizLocationGLNTo,
+        uint256 sourceBizLocationGLN,
+        uint256 destinationBizLocationGLN,
+        string memory bizStep,
+        string memory disposition,
         string memory shippingInfo, // example {"SSCC": 12309823478, "bizLocationGLNShipper": 238477723}
         string memory uom,
         uint256 quantity
     ) public {
-        // TradeItem memory tradeItem = TradeItem(
-        //     bizLocationGLNTo,
-        //     "SHIPPING",
-        //     "IN-TRANSIT",
-        //     uom,
-        //     quantity
-        // );
-    //     // push the post-transformation state of the TRADEITEM to the events array        
-        TradeItemEvent[] storage eventArray = tradeItemEvents[GTIN];
-        uint256 numberEvents = getNumberEventsForTradeItem(GTIN);
-        TradeItem memory tradeItem = eventArray[numberEvents - 1].tradeItem;
-        TradeItemEvent memory tradeItemEvent = TradeItemEvent(
-            "AGGREGATION",
-            block.timestamp,
-            bizLocationGLNFrom,
-            bizLocationGLNTo,
-            shippingInfo,
-            tradeItem
-        );
-         eventArray.push(tradeItemEvent);
-    //     // emit the event
-        emit TradeItemEmitEvent(
+         // store the observe event
+        lotEvent.captureTradeItemEvent(
             ownerOf(getLotForTradeItem(GTIN)),
+            getLotForTradeItem(GTIN),
             GTIN,
-            "TRANSFORM",
             "SHIPPING",
-            bizLocationGLNTo,
+            sourceBizLocationGLN,
+            destinationBizLocationGLN,
+            bizStep,
+            disposition,
+            uom,
             quantity,
-            quantity
+            quantity,
+            ""
         );
     }
 
@@ -289,13 +222,7 @@ import "./BizLocationContract.sol";
     /**
     Returns the LOT ID owning a TRADEITEM
      */
-    function getLotForTradeItem(uint256 GTIN)
-        public
-        view
-        returns (
-            uint256
-        )
-    {
+    function getLotForTradeItem(uint256 GTIN) public view returns (uint256) {
         return (lotForTradeItem[GTIN]);
     }
 
@@ -305,91 +232,8 @@ import "./BizLocationContract.sol";
     function getTradeItemsForLot(uint256 LOTID)
         public
         view
-        returns (
-            uint256[] memory
-        )
+        returns (uint256[] memory)
     {
         return (tradeItemsForLot[LOTID]);
     }
-
-    /**
-    Return the number of events that have occurred against a TRADEITEM (i.e. commission, transform, observe, etc.)
-    */
-    function getNumberEventsForTradeItem(uint256 GTIN)
-        public
-        view
-        returns (uint256)
-    {
-        TradeItemEvent[] memory eventArray = tradeItemEvents[GTIN];
-        uint256 numberOfEvents = eventArray.length;
-        return (numberOfEvents);
-    }
-
-    /**
-    This function isn't particularly useful. It returns the TRADEITEM state prior to the current state.
-    Ideally it should return an array of events, but returning dynamic arrays is an experimental feature only
-     */
-    function getEventHistory(uint256 GTIN)
-        public
-        view
-        returns (
-            uint256,
-            string memory,
-            uint256,
-            string memory,
-            string memory,
-            uint256
-        )
-    {
-        TradeItemEvent[] memory eventArray = tradeItemEvents[GTIN];
-        uint256 numberOfEvents = eventArray.length;
-        return (this.getTradeItemEventByIndex(GTIN, numberOfEvents - 1));
-    }
-
-    /**
-    Returns the commissioned TRADEITEM
-     */
-    function getCommissionedTradeItem(uint256 GTIN)
-        public
-        view
-        returns (
-            uint256,
-            string memory,
-            uint256,
-            string memory,
-            string memory,
-            uint256
-        )
-    {
-        return (this.getTradeItemEventByIndex(GTIN, 0));
-    }
-
-    /**
-    Returns a TRADEITEM event by index for a token
-     */
-    function getTradeItemEventByIndex(uint256 GTIN, uint256 index)
-        public
-        view
-        returns (
-            uint256,
-            string memory,
-            uint256,
-            string memory,
-            string memory,
-            uint256
-        )
-    {
-        TradeItemEvent[] memory eventArray = tradeItemEvents[GTIN];
-        uint256 numberOfEvents = eventArray.length;
-        require(numberOfEvents > 0, "No tradeItems exist for this token");
-        return (
-            GTIN,
-            eventArray[index].tradeItemSupplementaryInfo,
-            eventArray[index].tradeItem.bizLocationGLN,
-            eventArray[index].tradeItem.bizStep,
-            eventArray[index].tradeItem.uom,
-            eventArray[index].tradeItem.quantity
-        );
-    }
-
 }

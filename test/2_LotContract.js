@@ -229,7 +229,7 @@ contract('LotContract', (accounts) => {
     })
 
     it('can get the event history of a tradeItem', async () => {
-      const history = await lotContract.getEventHistory(harvestedCrop2GTIN)
+      const history = await lotContract.getEventHistoryForTradeItem(harvestedCrop2GTIN)
       assert.equal(history[0], harvestedCrop2GTIN)
       assert.equal(history[2], glnBizLocationCoop)
       assert.equal(history[3], "drying")
